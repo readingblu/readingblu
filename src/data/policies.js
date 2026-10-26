@@ -1,0 +1,157 @@
+export const LAST_UPDATED = '27 October 2026'
+
+export const policies = [
+  {
+    slug: 'terms',
+    title: 'Terms of Service',
+    summary: 'The main agreement between you and ReadingBlu, operated by Al Joodh ("we", "us").',
+    sections: [
+      { h: '1. Acceptance', p: 'By creating an account or using ReadingBlu you agree to these Terms and the other policies listed on this page. If you do not agree, please do not use the service.' },
+      { h: '2. Accounts', p: 'You must be at least 13 years old. You sign in with a supported provider (currently Google). You are responsible for activity on your account and must keep your sign-in secure. Parents may read with children on their own account.' },
+      { h: '3. Permitted use', p: 'We give you a personal, non-exclusive, non-transferable licence to read books on ReadingBlu for your own non-commercial use. You may not copy, redistribute, scrape, record, screenshot for distribution, or resell any content.' },
+      { h: '4. Books and AI content', p: 'All books on ReadingBlu are generated with AI and published by us. Content may contain errors. See the AI-Assisted Content Policy.' },
+      { h: '5. Payments', p: 'Paid features such as credits and subscriptions are governed by the Payments, Refunds & Cancellation, Credits, and Subscription policies. Payments are processed by our payment provider, Dodo Payments.' },
+      { h: '6. Suspension and termination', p: 'We may suspend or close accounts that break these Terms, the Acceptable Use Policy, or the law. You may stop using ReadingBlu and delete your account at any time.' },
+      { h: '7. Disclaimers and liability', p: 'ReadingBlu is provided "as is" and "as available". To the maximum extent permitted by law, we are not liable for indirect or consequential losses. Nothing in these Terms limits rights you have under mandatory consumer law.' },
+      { h: '8. Disputes and governing law', p: 'Please contact support first so we can try to resolve the issue. These Terms are governed by the laws of the country where Al Joodh is established, without removing any mandatory consumer protections that apply where you live.' },
+      { h: '9. Changes', p: 'We may update these Terms. Significant changes will be announced on the site, and continued use after the update means you accept them.' },
+    ],
+  },
+  {
+    slug: 'privacy',
+    title: 'Privacy Policy',
+    summary: 'What personal data we collect, why, how we protect it, and who we share it with. We do not sell your personal data.',
+    sections: [
+      { h: 'Data we collect', p: 'Account data from Google sign-in (name, email address, profile picture); activity data such as saved books, reviews, ratings and credit balance; basic device and log data (browser, IP address, pages visited); and payment records (amount, status, reference) from our payment provider. We never see or store your full card details.' },
+      { h: 'Why we use it', p: 'To create and secure your account, deliver books, remember your library, process payments and credits, prevent fraud and misuse, improve the service, and respond to support requests.' },
+      { h: 'How we store and protect it', p: 'Data is stored with our backend provider, Supabase, using encryption in transit and access controls. No system is perfectly secure, but we work to protect your information.' },
+      { h: 'Who we share it with', p: 'Service providers that help us run ReadingBlu: Supabase (hosting, database, authentication), Vercel (website hosting), Dodo Payments (checkout and payments), and analytics or advertising partners if and when we enable them. We may also disclose data when required by law.' },
+      { h: 'Your rights', p: 'Depending on where you live, you may have the right to access, correct, delete, or export your data and to object to certain processing. Email support@readingblu.com and we will respond.' },
+      { h: 'Retention and international transfers', p: 'We keep data only as long as needed for the purposes above or as the law requires (see Account Deletion & Data Retention Policy). Our providers may process data in other countries with appropriate safeguards.' },
+    ],
+  },
+  {
+    slug: 'payments-refunds',
+    title: 'Payments, Refunds & Cancellation Policy',
+    summary: 'How credit purchases, subscription billing, renewals, cancellations, failed payments and refunds work. Payments are not live yet; this policy applies once they are.',
+    sections: [
+      { h: 'How payment works', p: 'You pay through Dodo Payments, which hosts the checkout and processes the payment. After the payment is verified, our backend records the purchase and makes your credits, book or subscription available in your account.' },
+      { h: 'Credit purchases', p: 'Credit packs are one-time purchases. Purchased credits are non-refundable by default, including when you change your mind or have unused credits, except where the law requires otherwise.' },
+      { h: 'Subscriptions and renewals', p: 'Subscriptions renew automatically at the end of each billing period until cancelled. The price and period are shown before you pay. See the Subscription Policy.' },
+      { h: 'Cancellation', p: 'You can cancel a subscription at any time. You keep access until the end of the period you have paid for, and you will not be charged again after that.' },
+      { h: 'Failed payments, errors and duplicate charges', p: 'If a payment succeeds but your credits or access are not delivered, we will correct your balance or refund the payment if the issue cannot be resolved. Verified duplicate charges and other billing errors will be corrected or refunded.' },
+      { h: 'Your legal rights', p: 'Nothing in this policy removes any refund or consumer right that applies to you under applicable law. To request help, email support@readingblu.com with your account email and payment reference.' },
+    ],
+  },
+  {
+    slug: 'credits',
+    title: 'Credits & Virtual Currency Policy',
+    summary: 'How ReadingBlu credits work. Credits are not live yet; this policy applies once they are.',
+    sections: [
+      { h: 'What credits are', p: 'Credits are a virtual item used to unlock reading pages. One credit unlocks 10 pages. Credits have no cash value, cannot be exchanged for money, and cannot be transferred between accounts.' },
+      { h: 'Planned credit packs', p: 'Standard: 10 credits (100 pages) for $0.50. Recommended: 25 credits (250 pages) for $1.00. Maximum: 50 credits (500 pages) for $1.99. Prices may change before launch, and the price at checkout applies.' },
+      { h: 'Used credits are not restored automatically', p: 'Once a credit successfully unlocks 10 pages, it is used. If a technical error prevents you from accessing those pages, we will restore the credit or provide an appropriate remedy.' },
+      { h: 'Credits never expire', p: 'Both free credits (earned from rewarded ads) and purchased credits stay in your account until used or until the account is closed under our Account Deletion & Data Retention Policy.' },
+      { h: 'Errors', p: 'If a purchase succeeds but credits are not delivered, we will correct the balance or refund the payment.' },
+    ],
+  },
+  {
+    slug: 'digital-content',
+    title: 'Digital Content & Copyright Policy',
+    summary: 'Our Content Policy: who owns the books, how you may use them, and how we protect them.',
+    sections: [
+      { h: 'Ownership', p: 'The e-books, cover images, previews, text, and layout on ReadingBlu are created and published by us or our licensors. You receive a licence to read, not ownership of the content.' },
+      { h: 'What you may do', p: 'Read books through ReadingBlu for personal, non-commercial purposes, and share links to our pages.' },
+      { h: 'What you may not do', p: 'Copy, download, record, screenshot for sharing, scrape, republish, resell, train other AI systems on, or otherwise redistribute our content, or try to bypass any protection measures.' },
+      { h: 'Protection measures', p: 'Our reader may disable text selection, copying and printing, and may show watermarks. These are deterrents. Attempting to bypass them or misusing content may lead to account suspension and legal action.' },
+      { h: 'Reporting content', p: 'If you believe content infringes your rights or is harmful, see the Copyright Complaints & Takedown Policy.' },
+    ],
+  },
+  {
+    slug: 'advertising',
+    title: 'Advertising & Rewarded Ads Policy',
+    summary: 'How ads and optional rewarded ads work. Ads and rewards are not live yet; this policy applies once they are.',
+    sections: [
+      { h: 'Ads on ReadingBlu', p: 'Free reading may be supported by advertising. Subscribers to the ad-free Pro plan will not see ads.' },
+      { h: 'Rewarded ads', p: 'You may be able to watch an optional ad to earn free credits. Credits are granted when the ad is completed. Watching is always optional.' },
+      { h: 'Advertising partners and data', p: 'Ad partners may use cookies or similar technologies to show and measure ads. Where the law requires consent, we will ask for it. See the Cookie Policy and Privacy Policy.' },
+      { h: 'Fair use', p: 'Using bots, scripts, or other tricks to fake ad views or earn credits is prohibited and may lead to credit removal and account suspension.' },
+    ],
+  },
+  {
+    slug: 'cookies',
+    title: 'Cookie Policy',
+    summary: 'How ReadingBlu uses cookies and similar storage technologies.',
+    sections: [
+      { h: 'What they are', p: 'Cookies and similar technologies (such as local storage) are small pieces of data saved in your browser.' },
+      { h: 'Essential storage', p: 'We use storage that is necessary to keep you signed in and keep your session secure. The service cannot work without it.' },
+      { h: 'Preferences, analytics and advertising', p: 'If we add preference, analytics or advertising cookies, we will list them here and ask for consent where the law requires.' },
+      { h: 'Your choices', p: 'You can clear or block cookies in your browser settings. Blocking essential storage may stop you from signing in.' },
+    ],
+  },
+  {
+    slug: 'acceptable-use',
+    title: 'Acceptable Use Policy',
+    summary: 'The rules for behaving well on ReadingBlu.',
+    sections: [
+      { h: 'You must not', p: 'Break the law; harass or abuse others; post spam, hateful, sexual, or harmful content in reviews; impersonate others; or attempt to hack, overload, or disrupt the service.' },
+      { h: 'Content and access', p: 'Do not copy, scrape, or redistribute books, use automated tools to access the service, share your account, or bypass protections, limits, or payments.' },
+      { h: 'Reviews and ratings', p: 'Reviews must be honest and about the book. We may remove reviews that break these rules.' },
+      { h: 'Enforcement', p: 'We may remove content, restrict features, or suspend accounts that break this policy. Serious cases may be reported to the authorities.' },
+    ],
+  },
+  {
+    slug: 'copyright-takedown',
+    title: 'Copyright Complaints & Takedown Policy',
+    summary: 'How to report content you believe infringes your rights.',
+    sections: [
+      { h: 'Sending a notice', p: 'Email support@readingblu.com with: your name and contact details; a description of the work you own; the exact page or URL on ReadingBlu; a statement that you believe the use is not authorised; and a statement that your information is accurate and that you are the owner or authorised to act for the owner.' },
+      { h: 'What we do', p: 'We review notices promptly. If a notice is valid, we may remove or disable the content and tell the affected party.' },
+      { h: 'Counter-notice', p: 'If you believe content was removed by mistake, email us with your details, the removed content, and why you believe it was removed in error. We will review it.' },
+      { h: 'Repeat infringement', p: 'Accounts that repeatedly infringe copyright may be suspended or closed.' },
+    ],
+  },
+  {
+    slug: 'ai-content',
+    title: 'AI-Assisted Content Policy',
+    summary: 'Every book on ReadingBlu is generated with AI and published by us. We are open about that.',
+    sections: [
+      { h: 'AI-generated books', p: 'All books, descriptions, and images on ReadingBlu are created with AI tools and published by us. Books carry an "AI Generated" label.' },
+      { h: 'Accuracy', p: 'AI can make mistakes, including factual errors or odd wording. Books are for entertainment and general reading and are not professional, medical, legal, or financial advice.' },
+      { h: 'Reporting problems', p: 'If you find inaccurate, inappropriate, or infringing content, email support@readingblu.com and we will review it.' },
+      { h: 'Your data and AI', p: 'We do not use your personal reading data to train public AI models.' },
+    ],
+  },
+  {
+    slug: 'subscription',
+    title: 'Subscription Policy',
+    summary: 'How the Pro subscription works. Subscriptions are not live yet; this policy applies once they are.',
+    sections: [
+      { h: 'Pro plan', p: 'Pro offers ad-free, unlimited reading on available titles for $7.99 per billing period shown at checkout. "Available titles" means books included in the Pro catalogue, which may change over time.' },
+      { h: 'Billing and renewal', p: 'You are charged when you subscribe and then automatically at each renewal until you cancel. We will show the price, period, and renewal terms before payment.' },
+      { h: 'Cancelling', p: 'Cancel at any time from your account. Access continues until the end of the paid period. Cancellation stops future charges but does not refund the current period unless the law requires it.' },
+      { h: 'Price changes and failed payments', p: 'We will give notice before changing the price of an existing subscription. If a renewal payment fails, access may pause until payment succeeds.' },
+    ],
+  },
+  {
+    slug: 'children-privacy',
+    title: 'Age & Children\'s Privacy Policy',
+    summary: 'Who can use ReadingBlu and how we treat children\'s data.',
+    sections: [
+      { h: 'Minimum age', p: 'You must be at least 13 years old to create an account. We do not knowingly collect personal data from children under 13.' },
+      { h: 'Children reading', p: 'Parents and guardians may read ReadingBlu books with their children using the parent\'s account and are responsible for supervising use.' },
+      { h: 'If we learn of under-age data', p: 'If we find we collected personal data from a child under 13 without valid consent, we will delete it. Parents can contact support@readingblu.com to ask us to do so.' },
+    ],
+  },
+  {
+    slug: 'account-deletion',
+    title: 'Account Deletion & Data Retention Policy',
+    summary: 'How to delete your account and what we keep.',
+    sections: [
+      { h: 'Deleting your account', p: 'Email support@readingblu.com from your account email to request deletion. We will verify your identity and then delete or anonymise your personal data.' },
+      { h: 'What happens to your data', p: 'Your profile, saved books, reviews, and any unused credits or subscription access are removed. Unused credits are lost when the account is closed.' },
+      { h: 'What we may keep', p: 'We may keep limited records that the law requires or that we need for fraud prevention, tax, accounting, or dispute purposes, such as payment records, for as long as required.' },
+      { h: 'Inactive accounts', p: 'We may delete accounts that have been inactive for a long period after giving notice where possible.' },
+    ],
+  },
+]
