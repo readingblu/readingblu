@@ -19,14 +19,17 @@ export default function AuthPage() {
   const { session, loading, signInWithGoogle } = useAuth()
   const [params, setParams] = useSearchParams()
   const mode = params.get('mode') === 'signup' ? 'signup' : 'login'
+  const [adult, setAdult] = useState(false)
   const [accepted, setAccepted] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   if (!loading && session) return <Navigate to="/home" replace />
 
+  const ready = adult && accepted
+
   const handleGoogle = async () => {
-    if (!accepted) return
+    if (!ready) return
     setBusy(true)
     setError('')
     const { error: err } = await signInWithGoogle()
@@ -57,32 +60,47 @@ export default function AuthPage() {
           </div>
 
           <h1 className="mt-5 text-center text-2xl font-extrabold">{mode === 'signup' ? 'Create your free account' : 'Welcome back'}</h1>
+          <p className="mt-1 text-center text-sm font-semibold text-ink-soft">
+            Stories for readers of all ages. Accounts are for parents and adults, and children can read through them.
+          </p>
 
-          <label className="mt-5 flex cursor-pointer items-start gap-3 text-sm font-semibold text-ink-soft">
-            <input
-              type="checkbox"
-              checked={accepted}
-              onChange={(e) => setAccepted(e.target.checked)}
-              className="mt-0.5 h-5 w-5 shrink-0 accent-lime-deep"
-            />
-            <span>
-              I accept the{' '}
-              <Link to="/policies" target="_blank" rel="noopener noreferrer" className="font-extrabold text-ink underline">
-                Policies
-              </Link>{' '}
-              (Terms of Service, Privacy, Cookies, Content and Refund policies).
-            </span>
-          </label>
+          <div className="mt-5 space-y-3">
+            <label className="flex cursor-pointer items-start gap-3 text-sm font-semibold text-ink-soft">
+              <input
+                type="checkbox"
+                checked={adult}
+                onChange={(e) => setAdult(e.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-lime-deep"
+              />
+              <span>I am 18 or older. If a child reads with my account, I am their parent or guardian.</span>
+            </label>
+
+            <label className="flex cursor-pointer items-start gap-3 text-sm font-semibold text-ink-soft">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={(e) => setAccepted(e.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-lime-deep"
+              />
+              <span>
+                I accept the{' '}
+                <Link to="/policies" target="_blank" rel="noopener noreferrer" className="font-extrabold text-ink underline">
+                  Policies
+                </Link>{' '}
+                (Terms of Service, Privacy, Cookies, Content and Refund policies).
+              </span>
+            </label>
+          </div>
 
           <button
             onClick={handleGoogle}
-            disabled={!accepted || busy}
+            disabled={!ready || busy}
             className="mt-4 inline-flex w-full items-center justify-center gap-3 rounded-full border-2 border-ink bg-white px-5 py-3 font-extrabold text-ink transition hover:bg-sky disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <GoogleIcon />}
             Continue with Google
           </button>
-          {!accepted && <p className="mt-2 text-center text-xs font-semibold text-ink-soft">Tick the box above to continue.</p>}
+          {!ready && <p className="mt-2 text-center text-xs font-semibold text-ink-soft">Tick both boxes above to continue.</p>}
           {error && (
             <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">
               {error}

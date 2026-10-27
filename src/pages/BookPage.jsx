@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, BookOpen, Check, Eye, Heart, Loader2, ShoppingCart, Sparkles } from 'lucide-react'
+import { ArrowLeft, BookOpen, Check, Eye, Heart, Loader2, Share2, ShoppingCart, Sparkles } from 'lucide-react'
 import AppLayout from '../components/AppLayout'
 import PreviewModal from '../components/PreviewModal'
+import RelatedBooks from '../components/RelatedBooks'
 import ReviewsSection from '../components/ReviewsSection'
 import Toast from '../components/Toast'
 import { Stars } from '../components/StarRating'
@@ -34,11 +35,12 @@ export default function BookPage() {
     setOwned(false)
     setCoverFailed(false)
     setPreviewOpen(false)
+    window.scrollTo({ top: 0 })
 
     supabase
       .from('books')
       .select(
-        'id, title, author, description, cover_url, page_count, rating_avg, rating_count, categories(name), book_previews(id, page_number, image_url)',
+        'id, title, author, description, cover_url, page_count, rating_avg, rating_count, category_id, categories(name), book_previews(id, page_number, image_url)',
       )
       .eq('slug', slug)
       .eq('is_published', true)
@@ -97,6 +99,25 @@ export default function BookPage() {
     const ok = await toggle(bookId)
     if (!ok) show('Could not update your saved books. Please try again.')
     else show(wasSaved ? 'Removed from Saved' : 'Saved to your list')
+  }
+
+  const handleOtherFavorite = async (id) => {
+    const ok = await toggle(id)
+    if (!ok) show('Could not update your saved books. Please try again.')
+  }
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/book/${slug}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: book.title, text: `Read “${book.title}” on ReadingBlu`, url })
+        return
+      }
+      await navigator.clipboard.writeText(url)
+      show('Link copied')
+    } catch (err) {
+      if (err?.name !== 'AbortError') show('Could not share. Please copy the link from the address bar.')
+    }
   }
 
   const openPreview = () => {
@@ -217,9 +238,20 @@ export default function BookPage() {
                     <Heart className={`h-5 w-5 ${saved ? 'fill-blush text-blush' : ''}`} />
                     {saved ? 'Saved' : 'Save'}
                   </button>
+
+                  <button type="button" onClick={handleShare} className={secondaryBtn}>
+                    <Share2 className="h-5 w-5" /> Share
+                  </button>
                 </div>
               </div>
             </div>
+
+            <RelatedBooks
+              bookId={book.id}
+              categoryId={book.category_id}
+              favoriteIds={favoriteIds}
+              onToggleFavorite={handleOtherFavorite}
+            />
 
             <ReviewsSection key={book.id} bookId={book.id} userId={user.id} onChanged={refreshRating} notify={show} />
           </>

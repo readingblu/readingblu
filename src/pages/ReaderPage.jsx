@@ -47,6 +47,7 @@ function Message({ title, text, children }) {
 export default function ReaderPage() {
   const { slug } = useParams()
   const { user } = useAuth()
+  const userId = user?.id
 
   const [state, setState] = useState('loading') // loading | ready | notfound | error
   const [book, setBook] = useState(null)
@@ -58,11 +59,26 @@ export default function ReaderPage() {
   const [pageError, setPageError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const touch = useRef(null)
+  const pending = useRef(null)
 
   const total = rows.length
   const covered = hidden || shield
 
-  // Load the book and its pages
+  // Send the latest reading position to the server
+  const flush = useCallback(() => {
+    const p = pending.current
+    if (!p || !userId) return
+    pending.current = null
+    supabase
+      .from('reading_progress')
+      .upsert(
+        { user_id: userId, book_id: p.book_id, page_index: p.page_index, total_pages: p.total_pages, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,book_id' },
+      )
+      .then(() => {})
+  }, [userId])
+
+  // Load the book, its pages and where the reader stopped
   useEffect(() => {
     let active = true
     setState('loading')
@@ -94,13 +110,27 @@ export default function ReaderPage() {
         return
       }
 
+      let start = readSaved(b.id, r.length)
+      if (userId) {
+        const { data: prog } = await supabase
+          .from('reading_progress')
+          .select('page_index')
+          .eq('book_id', b.id)
+          .eq('user_id', userId)
+          .maybeSingle()
+        if (!active) return
+        if (prog && Number.isInteger(prog.page_index) && prog.page_index >= 0 && prog.page_index < r.length) {
+          start = prog.page_index
+        }
+      }
+
       try {
         const signed = await signRows(r)
         if (!active) return
         setBook(b)
         setRows(r)
         setUrls(signed)
-        setIndex(readSaved(b.id, r.length))
+        setIndex(start)
         setState('ready')
       } catch {
         if (active) setState('error')
@@ -110,7 +140,7 @@ export default function ReaderPage() {
     return () => {
       active = false
     }
-  }, [slug, reloadKey])
+  }, [slug, reloadKey, userId])
 
   const step = useCallback(
     (delta) => {
@@ -125,15 +155,21 @@ export default function ReaderPage() {
     setPageError(false)
   }
 
-  // Remember where the reader stopped
+  // Remember where the reader stopped (on this device and on the account)
   useEffect(() => {
-    if (state !== 'ready' || !book) return
+    if (state !== 'ready' || !book || total === 0) return undefined
     try {
       localStorage.setItem(`rb-progress-${book.id}`, String(index))
     } catch {
       // ignore
     }
-  }, [index, state, book])
+    pending.current = { book_id: book.id, page_index: index, total_pages: total }
+    const timer = setTimeout(flush, 800)
+    return () => clearTimeout(timer)
+  }, [index, state, book, total, flush])
+
+  // Make sure the last position is sent when leaving the reader
+  useEffect(() => () => flush(), [flush])
 
   // Preload the next two pages
   useEffect(() => {
@@ -176,7 +212,11 @@ export default function ReaderPage() {
         timer = setTimeout(() => setShield(false), 2000)
       }
     }
-    const onVisibility = () => setHidden(document.visibilityState === 'hidden')
+    const onVisibility = () => {
+      const isHidden = document.visibilityState === 'hidden'
+      setHidden(isHidden)
+      if (isHidden) flush()
+    }
     const onBlur = () => setHidden(true)
     const onFocus = () => setHidden(document.visibilityState === 'hidden')
 
@@ -193,7 +233,7 @@ export default function ReaderPage() {
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [step])
+  }, [step, flush])
 
   const retryPage = async () => {
     try {

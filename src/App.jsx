@@ -8,9 +8,11 @@ import UpgradePage from './pages/UpgradePage.jsx'
 import BookPage from './pages/BookPage.jsx'
 import SavedPage from './pages/SavedPage.jsx'
 import LibraryPage from './pages/LibraryPage.jsx'
+import AccountPage from './pages/AccountPage.jsx'
 import ReaderPage from './pages/ReaderPage.jsx'
 import AdminBooksPage from './pages/AdminBooksPage.jsx'
 import AdminBookEditPage from './pages/AdminBookEditPage.jsx'
+import AdminReviewsPage from './pages/AdminReviewsPage.jsx'
 import NotFoundPage from './pages/NotFoundPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import AdminRoute from './components/AdminRoute.jsx'
@@ -72,11 +74,29 @@ export default function App() {
         }
       />
       <Route
+        path="/account"
+        element={
+          <ProtectedRoute>
+            <AccountPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin"
         element={
           <ProtectedRoute>
             <AdminRoute>
               <AdminBooksPage />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/reviews"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminReviewsPage />
             </AdminRoute>
           </ProtectedRoute>
         }

@@ -5,6 +5,7 @@ import AppLayout from '../components/AppLayout'
 import BookCard from '../components/BookCard'
 import CategoryList from '../components/CategoryList'
 import CategoryDrawer from '../components/CategoryDrawer'
+import ContinueReading from '../components/ContinueReading'
 import Toast from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
 import { useFavorites } from '../hooks/useFavorites'
@@ -12,15 +13,23 @@ import { useToast } from '../hooks/useToast'
 import { supabase } from '../lib/supabase'
 
 const PAGE_SIZE = 25
+const SORTS = ['newest', 'rating', 'title']
 
-function fetchBooks(offset, categoryId, search) {
+function fetchBooks(offset, categoryId, search, sort) {
   let query = supabase
     .from('books')
     .select('id, title, slug, cover_url, rating_avg, rating_count', { count: 'exact' })
     .eq('is_published', true)
-    .order('created_at', { ascending: false })
-    .order('id')
-    .range(offset, offset + PAGE_SIZE - 1)
+
+  if (sort === 'rating') {
+    query = query.order('rating_avg', { ascending: false }).order('rating_count', { ascending: false })
+  } else if (sort === 'title') {
+    query = query.order('title', { ascending: true })
+  } else {
+    query = query.order('created_at', { ascending: false })
+  }
+
+  query = query.order('id').range(offset, offset + PAGE_SIZE - 1)
 
   if (categoryId) query = query.eq('category_id', categoryId)
   if (search) {
@@ -50,6 +59,7 @@ export default function HomePage() {
   const [params, setParams] = useSearchParams()
   const catSlug = params.get('cat') || ''
   const q = (params.get('q') || '').trim()
+  const sort = SORTS.includes(params.get('sort')) ? params.get('sort') : 'newest'
 
   const [categories, setCategories] = useState([])
   const [catsReady, setCatsReady] = useState(false)
@@ -85,14 +95,14 @@ export default function HomePage() {
     }
   }, [])
 
-  // Load the first page whenever the category or search changes
+  // Load the first page whenever the category, search or sort changes
   useEffect(() => {
     if (!catsReady) return
     const id = ++requestId.current
     setLoading(true)
     setError('')
 
-    fetchBooks(0, categoryId, q).then(({ data, error: err, count }) => {
+    fetchBooks(0, categoryId, q, sort).then(({ data, error: err, count }) => {
       if (id !== requestId.current) return
       if (err) {
         setError('We could not load the books. Please check your connection and try again.')
@@ -104,13 +114,13 @@ export default function HomePage() {
       }
       setLoading(false)
     })
-  }, [catsReady, categoryId, q, reloadKey])
+  }, [catsReady, categoryId, q, sort, reloadKey])
 
   const loadMore = async () => {
     if (loadingMore) return
     const id = requestId.current
     setLoadingMore(true)
-    const { data, error: err, count } = await fetchBooks(books.length, categoryId, q)
+    const { data, error: err, count } = await fetchBooks(books.length, categoryId, q, sort)
     if (id === requestId.current) {
       if (err) {
         show('Could not load more books. Please try again.')
@@ -136,6 +146,13 @@ export default function HomePage() {
     },
     [params, setParams],
   )
+
+  const changeSort = (value) => {
+    const next = new URLSearchParams(params)
+    if (value === 'newest') next.delete('sort')
+    else next.set('sort', value)
+    setParams(next)
+  }
 
   const clearFilters = () => {
     setParams({})
@@ -175,13 +192,33 @@ export default function HomePage() {
             <ChevronDown className="h-4 w-4 shrink-0" />
           </button>
 
+          {noFilters && <ContinueReading userId={user?.id} />}
+
           <div className="mb-4 flex items-end justify-between gap-3">
-            <h1 className="min-w-0 break-words text-2xl font-extrabold sm:text-3xl">{heading}</h1>
-            {!loading && !error && (
-              <p className="shrink-0 text-sm font-bold text-ink-soft">
-                {total} {total === 1 ? 'book' : 'books'}
-              </p>
-            )}
+            <div className="min-w-0">
+              <h1 className="break-words text-2xl font-extrabold sm:text-3xl">{heading}</h1>
+              {!loading && !error && (
+                <p className="text-sm font-bold text-ink-soft">
+                  {total} {total === 1 ? 'book' : 'books'}
+                </p>
+              )}
+            </div>
+
+            <div className="shrink-0">
+              <label htmlFor="sort-books" className="sr-only">
+                Sort books
+              </label>
+              <select
+                id="sort-books"
+                value={sort}
+                onChange={(e) => changeSort(e.target.value)}
+                className="h-10 rounded-full border-2 border-ink bg-white px-3 text-sm font-extrabold outline-none focus:ring-4 focus:ring-lime/40"
+              >
+                <option value="newest">Newest</option>
+                <option value="rating">Top rated</option>
+                <option value="title">A to Z</option>
+              </select>
+            </div>
           </div>
 
           {loading && <SkeletonGrid />}
