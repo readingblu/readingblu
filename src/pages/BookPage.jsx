@@ -193,7 +193,7 @@ export default function BookPage() {
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
-                    onClick={() => show('The reader is almost ready and opens very soon.')}
+                    onClick={() => navigate(`/read/${slug}`)}
                     className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime px-6 font-extrabold shadow-[0_4px_0_0_var(--color-ink)] transition hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none sm:w-auto"
                   >
                     <BookOpen className="h-5 w-5" /> Read For Free
@@ -213,12 +213,7 @@ export default function BookPage() {
                     </button>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    aria-pressed={saved}
-                    className={secondaryBtn}
-                  >
+                  <button type="button" onClick={handleSave} aria-pressed={saved} className={secondaryBtn}>
                     <Heart className={`h-5 w-5 ${saved ? 'fill-blush text-blush' : ''}`} />
                     {saved ? 'Saved' : 'Save'}
                   </button>

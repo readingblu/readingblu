@@ -8,8 +8,12 @@ import UpgradePage from './pages/UpgradePage.jsx'
 import BookPage from './pages/BookPage.jsx'
 import SavedPage from './pages/SavedPage.jsx'
 import LibraryPage from './pages/LibraryPage.jsx'
+import ReaderPage from './pages/ReaderPage.jsx'
+import AdminBooksPage from './pages/AdminBooksPage.jsx'
+import AdminBookEditPage from './pages/AdminBookEditPage.jsx'
 import NotFoundPage from './pages/NotFoundPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
+import AdminRoute from './components/AdminRoute.jsx'
 
 export default function App() {
   return (
@@ -44,6 +48,14 @@ export default function App() {
         }
       />
       <Route
+        path="/read/:slug"
+        element={
+          <ProtectedRoute>
+            <ReaderPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/saved"
         element={
           <ProtectedRoute>
@@ -56,6 +68,36 @@ export default function App() {
         element={
           <ProtectedRoute>
             <LibraryPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminBooksPage />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/books/new"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminBookEditPage />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/books/:id"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminBookEditPage />
+            </AdminRoute>
           </ProtectedRoute>
         }
       />

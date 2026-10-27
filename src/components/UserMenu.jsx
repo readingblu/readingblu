@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Heart, Library, LogOut, User } from 'lucide-react'
+import { Heart, Library, LogOut, ShieldCheck, User } from 'lucide-react'
 
 export default function UserMenu({ profile, onSignOut }) {
   const [open, setOpen] = useState(false)
@@ -59,6 +59,11 @@ export default function UserMenu({ profile, onSignOut }) {
           <Link role="menuitem" to="/library" onClick={() => setOpen(false)} className={itemClass}>
             <Library className="h-4 w-4" /> My Library
           </Link>
+          {profile?.is_admin && (
+            <Link role="menuitem" to="/admin" onClick={() => setOpen(false)} className={itemClass}>
+              <ShieldCheck className="h-4 w-4" /> Admin
+            </Link>
+          )}
           <div className="my-1 h-px bg-ink/10" />
           <button
             type="button"
