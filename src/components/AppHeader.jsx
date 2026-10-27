@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { Coins, Crown, LogOut, Search, X } from 'lucide-react'
+import { Coins, Crown, Heart, Library, Search, X } from 'lucide-react'
 import Logo from './Logo'
+import UserMenu from './UserMenu'
 import { useAuth } from '../context/AuthContext'
 import { useProfile } from '../hooks/useProfile'
 
@@ -76,6 +77,8 @@ export default function AppHeader() {
   }
 
   const creditsText = loading ? '…' : String(profile?.credits ?? 0)
+  const navLink =
+    'inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-extrabold hover:bg-sky'
 
   return (
     <header className="sticky top-0 z-30 border-b-2 border-ink/10 bg-white/95 backdrop-blur">
@@ -84,6 +87,15 @@ export default function AppHeader() {
           <Logo to="/home" className="h-9 sm:h-11" />
 
           <SearchBox value={value} onChange={setValue} onSubmit={submit} className="hidden max-w-xl flex-1 md:block" />
+
+          <nav aria-label="Your books" className="hidden items-center gap-1 lg:flex">
+            <Link to="/saved" className={navLink}>
+              <Heart className="h-4 w-4" /> Saved
+            </Link>
+            <Link to="/library" className={navLink}>
+              <Library className="h-4 w-4" /> Library
+            </Link>
+          </nav>
 
           <div className="ml-auto flex items-center gap-2">
             <Link
@@ -107,15 +119,7 @@ export default function AppHeader() {
               {creditsText}
             </Link>
 
-            <button
-              type="button"
-              onClick={signOut}
-              aria-label="Sign out"
-              title="Sign out"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-ink hover:bg-sky"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+            <UserMenu profile={profile} onSignOut={signOut} />
           </div>
         </div>
 

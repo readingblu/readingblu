@@ -3,10 +3,12 @@ import { supabase } from '../lib/supabase'
 
 export function useFavorites(userId) {
   const [ids, setIds] = useState(() => new Set())
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     if (!userId) return undefined
     let active = true
+    setReady(false)
 
     supabase
       .from('favorites')
@@ -15,6 +17,7 @@ export function useFavorites(userId) {
       .then(({ data, error }) => {
         if (!active || error || !data) return
         setIds(new Set(data.map((row) => row.book_id)))
+        setReady(true)
       })
 
     return () => {
@@ -25,7 +28,7 @@ export function useFavorites(userId) {
   // Returns true when saved correctly, false when it failed (and was undone)
   const toggle = useCallback(
     async (bookId) => {
-      if (!userId) return false
+      if (!userId || !ready) return false
       const wasSaved = ids.has(bookId)
 
       setIds((prev) => {
@@ -50,8 +53,8 @@ export function useFavorites(userId) {
       }
       return true
     },
-    [ids, userId],
+    [ids, ready, userId],
   )
 
-  return { ids, toggle }
+  return { ids, toggle, ready }
 }

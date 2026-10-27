@@ -6,6 +6,8 @@ import ContactPage from './pages/ContactPage.jsx'
 import HomePage from './pages/HomePage.jsx'
 import UpgradePage from './pages/UpgradePage.jsx'
 import BookPage from './pages/BookPage.jsx'
+import SavedPage from './pages/SavedPage.jsx'
+import LibraryPage from './pages/LibraryPage.jsx'
 import NotFoundPage from './pages/NotFoundPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 
@@ -38,6 +40,22 @@ export default function App() {
         element={
           <ProtectedRoute>
             <BookPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/saved"
+        element={
+          <ProtectedRoute>
+            <SavedPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/library"
+        element={
+          <ProtectedRoute>
+            <LibraryPage />
           </ProtectedRoute>
         }
       />
