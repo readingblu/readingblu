@@ -9,7 +9,9 @@ import { DAILY_CREDITS, formatCredits, formatReset } from '../lib/credits'
 const IMG_MAX_HEIGHT = 'calc(100dvh - 10rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))'
 const URL_LIFETIME_SECONDS = 15 * 60
 const URL_REUSE_MS = 10 * 60 * 1000
-const ZOOM_LEVELS = [1, 1.5, 2, 3]
+const MIN_ZOOM = 30
+const MAX_ZOOM = 300
+const ZOOM_STEP = 10
 
 function useIsDesktop() {
   const query = '(min-width: 768px)'
@@ -74,11 +76,13 @@ export default function ReaderPage() {
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [pageTick, setPageTick] = useState(0)
-  const [zoomIdx, setZoomIdx] = useState(0)
+  const [zoomPct, setZoomPct] = useState(null) // null = fit to screen
+  const [nat, setNat] = useState(null) // natural size of the current page image
+  const [box, setBox] = useState({ w: 0, h: 0 }) // space available for the page
 
   const isDesktop = useIsDesktop()
-  const zoom = ZOOM_LEVELS[zoomIdx]
 
+  const mainRef = useRef(null)
   const touch = useRef(null)
   const pending = useRef(null)
   const unlocked = useRef(new Map()) // page_number -> expiry (ms)
@@ -89,6 +93,20 @@ export default function ReaderPage() {
 
   const total = rows.length
   const covered = hidden || shield
+
+  // Fit-to-screen scale (phones never scale a page above 100%, like before)
+  const fitScale = nat && box.w > 0 && box.h > 0 ? Math.min(box.w / nat.w, box.h / nat.h, isDesktop ? Infinity : 1) : 1
+  const fitPct = fitScale * 100
+  const scalePct = zoomPct ?? fitPct
+  const shownPct = Math.round(scalePct)
+  const isZoomed = zoomPct !== null && zoomPct > fitPct + 0.5
+
+  // Snap to the next/previous step of 10 (97% -> 100% or 90%)
+  const zoomBy = (dir) => {
+    const r = scalePct / ZOOM_STEP
+    const next = (dir > 0 ? Math.floor(r + 0.001) + 1 : Math.ceil(r - 0.001) - 1) * ZOOM_STEP
+    setZoomPct(Math.min(Math.max(next, MIN_ZOOM), MAX_ZOOM))
+  }
 
   const flush = useCallback(() => {
     const p = pending.current
@@ -174,6 +192,7 @@ export default function ReaderPage() {
     if (!row) return undefined
     let active = true
     setPageUrl(null)
+    setNat(null)
     setPageStatus('loading')
 
     const run = async () => {
@@ -260,6 +279,17 @@ export default function ReaderPage() {
   }, [index, pageStatus, state, book, total, flush])
 
   useEffect(() => () => flush(), [flush])
+
+  // Track the space available for the page so "fit" always fits
+  useEffect(() => {
+    const el = mainRef.current
+    if (!el) return undefined
+    const measure = () => setBox({ w: el.clientWidth - 16, h: el.clientHeight - 16 })
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [state, total])
 
   // Lock page scrolling behind the reader
   useEffect(() => {
@@ -358,7 +388,7 @@ export default function ReaderPage() {
   }
   const onTouchEnd = (e) => {
     // When zoomed in, swiping pans the page instead of flipping it
-    if (!touch.current || zoom > 1) {
+    if (!touch.current || isZoomed) {
       touch.current = null
       return
     }
@@ -373,7 +403,7 @@ export default function ReaderPage() {
   const watermarkText = `${user?.email || 'ReadingBlu reader'} · ${(user?.id || '').slice(0, 6)} · ReadingBlu`
   const navBtn =
     'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-ink shadow disabled:opacity-30'
-  const zoomBtn = 'inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 disabled:opacity-30'
+  const zoomBtn = 'inline-flex h-9 w-9 items-center justify-center rounded-full disabled:opacity-30'
   const creditsLabel = wallet ? (wallet.is_pro ? '∞' : formatCredits(wallet.daily_pages + wallet.paid_pages)) : ''
 
   return (
@@ -404,11 +434,11 @@ export default function ReaderPage() {
             )}
           </div>
           {state === 'ready' && total > 0 && (
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/15 p-0.5">
               <button
                 type="button"
-                onClick={() => setZoomIdx((i) => Math.max(i - 1, 0))}
-                disabled={zoomIdx === 0}
+                onClick={() => zoomBy(-1)}
+                disabled={scalePct <= MIN_ZOOM}
                 aria-label="Zoom out"
                 className={zoomBtn}
               >
@@ -416,8 +446,17 @@ export default function ReaderPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setZoomIdx((i) => Math.min(i + 1, ZOOM_LEVELS.length - 1))}
-                disabled={zoomIdx === ZOOM_LEVELS.length - 1}
+                onClick={() => setZoomPct(null)}
+                aria-label="Fit to screen"
+                title="Fit to screen"
+                className="h-9 min-w-[3.25rem] px-1 text-sm font-extrabold tabular-nums"
+              >
+                {shownPct}%
+              </button>
+              <button
+                type="button"
+                onClick={() => zoomBy(1)}
+                disabled={scalePct >= MAX_ZOOM}
                 aria-label="Zoom in"
                 className={zoomBtn}
               >
@@ -473,6 +512,7 @@ export default function ReaderPage() {
         {state === 'ready' && total > 0 && (
           <>
             <main
+              ref={mainRef}
               className="relative flex min-h-0 flex-1 overflow-auto px-2 py-2"
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
@@ -482,26 +522,16 @@ export default function ReaderPage() {
               )}
 
               {pageStatus === 'ready' && pageUrl && (
-                <div
-                  className="relative z-10 m-auto shrink-0 leading-none"
-                  style={zoom > 1 ? { width: `${zoom * 100}%` } : undefined}
-                >
+                <div className="relative z-10 m-auto shrink-0 leading-none">
                   <img
                     key={pageUrl}
                     src={pageUrl}
                     alt={`${book.title}, page ${index + 1}`}
                     draggable={false}
+                    onLoad={(e) => setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
                     onError={() => setPageStatus('error')}
-                    className={`block select-none rounded-md bg-white ${covered ? 'invisible' : ''} ${
-                      zoom > 1 ? 'h-auto w-full' : 'h-auto w-auto max-w-full'
-                    }`}
-                    style={
-                      zoom > 1
-                        ? undefined
-                        : isDesktop
-                          ? { height: IMG_MAX_HEIGHT, width: 'auto', maxWidth: '100%', objectFit: 'contain' }
-                          : { maxHeight: IMG_MAX_HEIGHT }
-                    }
+                    className={`block h-auto max-w-none select-none rounded-md bg-white ${covered || !nat ? 'invisible' : ''}`}
+                    style={nat ? { width: `${(nat.w * scalePct) / 100}px` } : { maxHeight: IMG_MAX_HEIGHT, maxWidth: '100%' }}
                   />
                   <Watermark text={watermarkText} />
                   {covered && (
