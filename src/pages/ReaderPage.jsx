@@ -12,6 +12,26 @@ const URL_REUSE_MS = 10 * 60 * 1000
 const MIN_ZOOM = 30
 const MAX_ZOOM = 300
 const ZOOM_STEP = 10
+const UNLOCK_DELAY_MS = 150 // pause before paying for a page, so fast flipping does not use credits
+const IMG_CACHE_LIMIT = 10
+
+// Download an image once and keep a reference to it so the browser does not drop it
+function preloadImage(cache, url) {
+  const hit = cache.get(url)
+  if (hit) return hit.promise
+  const img = new Image()
+  const promise = new Promise((resolve, reject) => {
+    img.onload = () => resolve(img)
+    img.onerror = () => {
+      cache.delete(url)
+      reject(new Error('Could not load the page image.'))
+    }
+  })
+  img.src = url
+  cache.set(url, { img, promise })
+  while (cache.size > IMG_CACHE_LIMIT) cache.delete(cache.keys().next().value)
+  return promise
+}
 
 function useIsDesktop() {
   const query = '(min-width: 768px)'
@@ -71,6 +91,7 @@ export default function ReaderPage() {
   const [sliderValue, setSliderValue] = useState(1)
   const [pageStatus, setPageStatus] = useState('loading') // loading | ready | nocredits | error
   const [pageUrl, setPageUrl] = useState(null)
+  const [shownIdx, setShownIdx] = useState(0)
   const [hidden, setHidden] = useState(false)
   const [shield, setShield] = useState(false)
   const [leaveOpen, setLeaveOpen] = useState(false)
@@ -87,6 +108,7 @@ export default function ReaderPage() {
   const pending = useRef(null)
   const unlocked = useRef(new Map()) // page_number -> expiry (ms)
   const urlCache = useRef(new Map())
+  const imgCache = useRef(new Map()) // url -> { img, promise } (keeps preloaded images alive)
   const leaving = useRef(false)
   const guardOn = useRef(false)
   const startIdx = useRef(null)
@@ -130,6 +152,7 @@ export default function ReaderPage() {
     setPageUrl(null)
     unlocked.current = new Map()
     urlCache.current = new Map()
+    imgCache.current = new Map()
 
     ;(async () => {
       try {
@@ -185,15 +208,23 @@ export default function ReaderPage() {
     }
   }, [slug, reloadKey, userId])
 
-  // Open (and, if needed, pay for) the page you are on, then show it
+  // Open (and, if needed, pay for) the page you are on, then show it.
+  // The old page stays on screen until the new one is fully downloaded.
   useEffect(() => {
     if (state !== 'ready' || rows.length === 0 || !book) return undefined
     const row = rows[index]
     if (!row) return undefined
     let active = true
-    setPageUrl(null)
-    setNat(null)
     setPageStatus('loading')
+
+    const loadPage = async (path) => {
+      const url = await signPath(urlCache.current, path)
+      const img = await preloadImage(imgCache.current, url)
+      return { url, img }
+    }
+
+    // Sign and download the image while the unlock check runs. It is only SHOWN after the unlock succeeds.
+    const warm = loadPage(row.storage_path).catch(() => null)
 
     const run = async () => {
       try {
@@ -204,42 +235,49 @@ export default function ReaderPage() {
           if (error || !data) throw error || new Error('Could not unlock the page.')
           if (data.wallet) setWallet(data.wallet)
           if (data.status === 'no_credits') {
+            setPageUrl(null)
             setPageStatus('nocredits')
             return
           }
           if (data.status !== 'ok') throw new Error('Could not unlock the page.')
           unlocked.current.set(row.page_number, Date.parse(data.expires_at))
         }
-        const url = await signPath(urlCache.current, row.storage_path)
+        const loaded = (await warm) || (await loadPage(row.storage_path))
         if (!active) return
-        setPageUrl(url)
+        setNat({ w: loaded.img.naturalWidth, h: loaded.img.naturalHeight })
+        setPageUrl(loaded.url)
+        setShownIdx(index)
         setPageStatus('ready')
       } catch {
-        if (active) setPageStatus('error')
+        if (active) {
+          setPageUrl(null)
+          setPageStatus('error')
+        }
       }
     }
 
     // A short pause means flipping quickly past a page does not use credits
     const alreadyOpen = (unlocked.current.get(row.page_number) || 0) > Date.now()
-    const timer = setTimeout(run, alreadyOpen ? 0 : 350)
+    const timer = setTimeout(run, alreadyOpen ? 0 : UNLOCK_DELAY_MS)
     return () => {
       active = false
       clearTimeout(timer)
     }
   }, [state, rows, index, book, pageTick])
 
-  // Preload only pages that are already open
+  // Get the next pages ready: sign their links and download the images ahead of time.
+  // This never unlocks or charges anything; a page is still only shown after unlock_page succeeds.
   useEffect(() => {
     if (state !== 'ready' || pageStatus !== 'ready') return
     ;[1, 2].forEach(async (d) => {
       const row = rows[index + d]
       if (!row) return
       const expiry = unlocked.current.get(row.page_number)
-      if (!expiry || expiry <= Date.now()) return
+      const open = expiry && expiry > Date.now()
+      if (d === 2 && !open) return // only the very next page is prepared when it is not open yet
       try {
         const url = await signPath(urlCache.current, row.storage_path)
-        const img = new Image()
-        img.src = url
+        await preloadImage(imgCache.current, url)
       } catch {
         // ignore preload problems
       }
@@ -517,16 +555,19 @@ export default function ReaderPage() {
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
             >
-              {pageStatus === 'loading' && (
+              {pageStatus === 'loading' && !pageUrl && (
                 <Loader2 className="absolute inset-0 m-auto h-8 w-8 animate-spin text-white/60" aria-label="Opening page" />
               )}
+              {pageStatus === 'loading' && pageUrl && (
+                <Loader2 className="fixed right-4 top-20 z-30 h-5 w-5 animate-spin text-white/70" aria-label="Opening page" />
+              )}
 
-              {pageStatus === 'ready' && pageUrl && (
+              {pageUrl && (pageStatus === 'ready' || pageStatus === 'loading') && (
                 <div className="relative z-10 m-auto shrink-0 leading-none">
                   <img
                     key={pageUrl}
                     src={pageUrl}
-                    alt={`${book.title}, page ${index + 1}`}
+                    alt={`${book.title}, page ${shownIdx + 1}`}
                     draggable={false}
                     onLoad={(e) => setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
                     onError={() => setPageStatus('error')}
