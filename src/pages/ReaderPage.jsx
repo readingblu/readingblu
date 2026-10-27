@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ChevronLeft, ChevronRight, Coins, Loader2, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Coins, Loader2, ShieldAlert, ZoomIn, ZoomOut } from 'lucide-react'
 import Watermark from '../components/reader/Watermark'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -9,6 +9,19 @@ import { DAILY_CREDITS, formatCredits, formatReset } from '../lib/credits'
 const IMG_MAX_HEIGHT = 'calc(100dvh - 10rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))'
 const URL_LIFETIME_SECONDS = 15 * 60
 const URL_REUSE_MS = 10 * 60 * 1000
+const ZOOM_LEVELS = [1, 1.5, 2, 3]
+
+function useIsDesktop() {
+  const query = '(min-width: 768px)'
+  const [match, setMatch] = useState(() => (typeof window !== 'undefined' ? window.matchMedia(query).matches : false))
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const onChange = () => setMatch(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  return match
+}
 
 async function signPath(cache, path) {
   const hit = cache.get(path)
@@ -61,6 +74,10 @@ export default function ReaderPage() {
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [pageTick, setPageTick] = useState(0)
+  const [zoomIdx, setZoomIdx] = useState(0)
+
+  const isDesktop = useIsDesktop()
+  const zoom = ZOOM_LEVELS[zoomIdx]
 
   const touch = useRef(null)
   const pending = useRef(null)
@@ -340,7 +357,11 @@ export default function ReaderPage() {
     touch.current = { x: t.clientX, y: t.clientY }
   }
   const onTouchEnd = (e) => {
-    if (!touch.current) return
+    // When zoomed in, swiping pans the page instead of flipping it
+    if (!touch.current || zoom > 1) {
+      touch.current = null
+      return
+    }
     const t = e.changedTouches[0]
     const dx = t.clientX - touch.current.x
     const dy = t.clientY - touch.current.y
@@ -352,6 +373,7 @@ export default function ReaderPage() {
   const watermarkText = `${user?.email || 'ReadingBlu reader'} · ${(user?.id || '').slice(0, 6)} · ReadingBlu`
   const navBtn =
     'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-ink shadow disabled:opacity-30'
+  const zoomBtn = 'inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 disabled:opacity-30'
   const creditsLabel = wallet ? (wallet.is_pro ? '∞' : formatCredits(wallet.daily_pages + wallet.paid_pages)) : ''
 
   return (
@@ -381,6 +403,28 @@ export default function ReaderPage() {
               </p>
             )}
           </div>
+          {state === 'ready' && total > 0 && (
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setZoomIdx((i) => Math.max(i - 1, 0))}
+                disabled={zoomIdx === 0}
+                aria-label="Zoom out"
+                className={zoomBtn}
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoomIdx((i) => Math.min(i + 1, ZOOM_LEVELS.length - 1))}
+                disabled={zoomIdx === ZOOM_LEVELS.length - 1}
+                aria-label="Zoom in"
+                className={zoomBtn}
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           {state === 'ready' && creditsLabel && (
             <Link
               to="/upgrade"
@@ -429,22 +473,35 @@ export default function ReaderPage() {
         {state === 'ready' && total > 0 && (
           <>
             <main
-              className="relative flex min-h-0 flex-1 items-center justify-center overflow-auto px-2 py-2"
+              className="relative flex min-h-0 flex-1 overflow-auto px-2 py-2"
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
             >
-              {pageStatus === 'loading' && <Loader2 className="absolute h-8 w-8 animate-spin text-white/60" aria-label="Opening page" />}
+              {pageStatus === 'loading' && (
+                <Loader2 className="absolute inset-0 m-auto h-8 w-8 animate-spin text-white/60" aria-label="Opening page" />
+              )}
 
               {pageStatus === 'ready' && pageUrl && (
-                <div className="relative z-10 inline-block leading-none">
+                <div
+                  className="relative z-10 m-auto shrink-0 leading-none"
+                  style={zoom > 1 ? { width: `${zoom * 100}%` } : undefined}
+                >
                   <img
                     key={pageUrl}
                     src={pageUrl}
                     alt={`${book.title}, page ${index + 1}`}
                     draggable={false}
                     onError={() => setPageStatus('error')}
-                    className={`block h-auto w-auto max-w-full select-none rounded-md bg-white object-contain ${covered ? 'invisible' : ''}`}
-                    style={{ maxHeight: IMG_MAX_HEIGHT }}
+                    className={`block select-none rounded-md bg-white ${covered ? 'invisible' : ''} ${
+                      zoom > 1 ? 'h-auto w-full' : 'h-auto w-auto max-w-full'
+                    }`}
+                    style={
+                      zoom > 1
+                        ? undefined
+                        : isDesktop
+                          ? { height: IMG_MAX_HEIGHT, width: 'auto', maxWidth: '100%', objectFit: 'contain' }
+                          : { maxHeight: IMG_MAX_HEIGHT }
+                    }
                   />
                   <Watermark text={watermarkText} />
                   {covered && (
@@ -456,7 +513,7 @@ export default function ReaderPage() {
               )}
 
               {pageStatus === 'nocredits' && (
-                <div className="relative z-10 max-w-sm text-center">
+                <div className="relative z-10 m-auto max-w-sm text-center">
                   <Coins className="mx-auto h-10 w-10 text-lime" />
                   <p className="mt-3 text-xl font-extrabold">You are out of credits for now</p>
                   <p className="mt-1 text-sm font-semibold text-white/75">
@@ -477,7 +534,7 @@ export default function ReaderPage() {
               )}
 
               {pageStatus === 'error' && (
-                <div className="relative z-10 max-w-xs text-center">
+                <div className="relative z-10 m-auto max-w-xs text-center">
                   <p className="font-extrabold">This page could not be loaded.</p>
                   <button
                     type="button"
