@@ -5,6 +5,8 @@ import Logo from './Logo'
 import UserMenu from './UserMenu'
 import { useAuth } from '../context/AuthContext'
 import { useProfile } from '../hooks/useProfile'
+import { useWallet } from '../hooks/useWallet'
+import { formatCredits } from '../lib/credits'
 
 function SearchBox({ value, onChange, onSubmit, className = '' }) {
   return (
@@ -35,7 +37,8 @@ function SearchBox({ value, onChange, onSubmit, className = '' }) {
 
 export default function AppHeader() {
   const { user, signOut } = useAuth()
-  const { profile, loading } = useProfile(user?.id)
+  const { profile } = useProfile(user?.id)
+  const { wallet, loading, failed } = useWallet(user?.id)
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
@@ -44,7 +47,6 @@ export default function AppHeader() {
   const onHome = pathname === '/home'
   const [value, setValue] = useState(urlQuery)
 
-  // Keep the box in sync when the URL changes (for example "Clear filters")
   useEffect(() => {
     setValue((prev) => (prev.trim() === urlQuery.trim() ? prev : urlQuery))
   }, [urlQuery])
@@ -56,7 +58,6 @@ export default function AppHeader() {
     setParams(next, { replace })
   }
 
-  // Live search (debounced) while on the Home page
   useEffect(() => {
     if (!onHome) return undefined
     const trimmed = value.trim()
@@ -76,9 +77,14 @@ export default function AppHeader() {
     }
   }
 
-  const creditsText = loading ? '…' : String(profile?.credits ?? 0)
-  const navLink =
-    'inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-extrabold hover:bg-sky'
+  let creditsText = '…'
+  if (!loading) {
+    if (failed || !wallet) creditsText = '–'
+    else if (wallet.is_pro) creditsText = '∞'
+    else creditsText = formatCredits(wallet.daily_pages + wallet.paid_pages)
+  }
+
+  const navLink = 'inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-extrabold hover:bg-sky'
 
   return (
     <header className="sticky top-0 z-30 border-b-2 border-ink/10 bg-white/95 backdrop-blur">
@@ -110,7 +116,7 @@ export default function AppHeader() {
             <Link
               to="/upgrade"
               aria-label={`Credits: ${creditsText}`}
-              title="Credits"
+              title="Your credits"
               className="inline-flex h-10 items-center gap-1.5 rounded-full border-2 border-ink bg-white pl-1.5 pr-3 text-sm font-extrabold hover:bg-sky"
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-lime">

@@ -4,11 +4,14 @@ import { AlertTriangle, Coins, Loader2, Trash2, User } from 'lucide-react'
 import AppLayout from '../components/AppLayout'
 import { useAuth } from '../context/AuthContext'
 import { useProfile } from '../hooks/useProfile'
+import { useWallet } from '../hooks/useWallet'
+import { formatCredits } from '../lib/credits'
 import { supabase } from '../lib/supabase'
 
 export default function AccountPage() {
   const { user } = useAuth()
   const { profile, loading } = useProfile(user?.id)
+  const { wallet } = useWallet(user?.id)
   const navigate = useNavigate()
   const [confirmText, setConfirmText] = useState('')
   const [busy, setBusy] = useState(false)
@@ -31,6 +34,8 @@ export default function AccountPage() {
     await supabase.auth.signOut({ scope: 'local' })
     navigate('/', { replace: true })
   }
+
+  const creditsText = wallet ? (wallet.is_pro ? 'Unlimited' : `${formatCredits(wallet.daily_pages + wallet.paid_pages)} credits`) : '… credits'
 
   return (
     <AppLayout>
@@ -55,14 +60,15 @@ export default function AccountPage() {
               </div>
 
               <div className="mt-5 flex flex-wrap items-center gap-3 text-sm font-extrabold">
-                <span className="inline-flex items-center gap-2 rounded-full bg-sky px-4 py-2">
-                  <Coins className="h-4 w-4" /> {profile?.credits ?? 0} credits
-                </span>
+                <Link to="/upgrade" className="inline-flex items-center gap-2 rounded-full bg-sky px-4 py-2 hover:underline">
+                  <Coins className="h-4 w-4" /> {creditsText}
+                </Link>
                 <span className="rounded-full bg-sky px-4 py-2">{profile?.is_pro ? 'Pro member' : 'Free plan'}</span>
               </div>
 
               <p className="mt-4 text-sm font-semibold text-ink-soft">
-                Your name and email come from your Google account. Reading is free for now, and credits and Pro are coming soon.
+                Your name and email come from your Google account. You get 2 free credits every day, and you can see the details on the{' '}
+                <Link to="/upgrade" className="font-extrabold text-ink underline">credits page</Link>.
               </p>
             </section>
 
@@ -72,13 +78,11 @@ export default function AccountPage() {
               </h2>
 
               {profile?.is_admin ? (
-                <p className="mt-2 text-sm font-semibold text-ink-soft">
-                  Admin accounts cannot be deleted from this page.
-                </p>
+                <p className="mt-2 text-sm font-semibold text-ink-soft">Admin accounts cannot be deleted from this page.</p>
               ) : (
                 <>
                   <p className="mt-2 text-sm font-semibold text-ink-soft">
-                    This permanently deletes your account, saved books, reviews and any credits or purchases. It cannot be undone. See the{' '}
+                    This permanently deletes your account, saved books, reviews, reading progress and any credits or purchases. It cannot be undone. See the{' '}
                     <Link to="/policies/account-deletion" className="font-extrabold text-ink underline">
                       Account Deletion policy
                     </Link>

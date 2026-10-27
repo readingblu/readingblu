@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AlertCircle, BookOpen, Eye, EyeOff, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import AppLayout from '../components/AppLayout'
 import Toast from '../components/Toast'
@@ -31,6 +31,8 @@ function Thumb({ url }) {
 
 export default function AdminBooksPage() {
   const { message, show } = useToast()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [books, setBooks] = useState([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -39,6 +41,16 @@ export default function AdminBooksPage() {
   const [reloadKey, setReloadKey] = useState(0)
   const [busyId, setBusyId] = useState(null)
   const requestId = useRef(0)
+
+  // Show the "book created" message once
+  useEffect(() => {
+    const notice = location.state?.notice
+    if (notice) {
+      show(notice)
+      navigate(location.pathname, { replace: true, state: null })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const fetchPage = useCallback(
     (offset) =>
@@ -85,6 +97,10 @@ export default function AdminBooksPage() {
   }
 
   const togglePublish = async (book) => {
+    if (!book.is_published && !book.page_count) {
+      show('Upload the book pages before publishing.')
+      return
+    }
     setBusyId(book.id)
     const next = !book.is_published
     const { error: err } = await supabase.from('books').update({ is_published: next }).eq('id', book.id)

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, BookOpen, Check, Eye, Heart, Loader2, Share2, ShoppingCart, Sparkles } from 'lucide-react'
 import AppLayout from '../components/AppLayout'
 import PreviewModal from '../components/PreviewModal'
@@ -217,7 +217,7 @@ export default function BookPage() {
                     onClick={() => navigate(`/read/${slug}`)}
                     className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime px-6 font-extrabold shadow-[0_4px_0_0_var(--color-ink)] transition hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none sm:w-auto"
                   >
-                    <BookOpen className="h-5 w-5" /> Read For Free
+                    <BookOpen className="h-5 w-5" /> Read
                   </button>
 
                   <button type="button" onClick={openPreview} className={secondaryBtn}>
@@ -243,6 +243,13 @@ export default function BookPage() {
                     <Share2 className="h-5 w-5" /> Share
                   </button>
                 </div>
+
+                <p className="mt-3 text-sm font-semibold text-ink-soft">
+                  Reading uses credits: 1 credit unlocks 10 pages, and you get 2 free credits every day.{' '}
+                  <Link to="/upgrade" className="font-extrabold text-ink underline">
+                    See your credits
+                  </Link>
+                </p>
               </div>
             </div>
 

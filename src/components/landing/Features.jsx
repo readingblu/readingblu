@@ -1,12 +1,12 @@
 import { BookOpenCheck, Sparkles, Eye, Heart, Library, Coins } from 'lucide-react'
 
 const features = [
-  { icon: BookOpenCheck, title: 'Read free in your browser', text: 'Open any available book and read it in full, with no downloads and no credits needed right now.' },
-  { icon: Sparkles, title: 'Honestly AI-made', text: 'Every book is generated with AI and published by us. Each one carries a clear AI-generated label.' },
+  { icon: BookOpenCheck, title: 'Free credits every day', text: 'Get 2 free credits every day, enough to read 20 pages. Pages you open stay unlocked for 24 hours, so you can switch books and come back to where you stopped.' },
+  { icon: Sparkles, title: 'Honestly AI-made', text: 'Every book is generated with AI and published by us. Each book page carries a clear AI-generated label.' },
   { icon: Eye, title: 'Preview before you read', text: 'Every book has a sample of pages so you can see if it is your kind of story.' },
   { icon: Heart, title: 'Save your favourites', text: 'Tap the heart on any book to keep it in your Saved list for later.' },
   { icon: Library, title: 'Your personal Library', text: 'Books you purchase will live in your Library, ready whenever you are.' },
-  { icon: Coins, title: 'Credits and Pro (coming soon)', text: 'Credit packs and an ad-free Pro plan are on the way. Payments are not live yet.', soon: true },
+  { icon: Coins, title: 'Credit packs and Pro (coming soon)', text: 'Extra credit packs and an unlimited Pro plan are on the way. Payments are not live yet.', soon: true },
 ]
 
 export default function Features() {

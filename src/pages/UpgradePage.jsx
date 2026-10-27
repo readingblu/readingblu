@@ -1,8 +1,11 @@
 import { useState } from 'react'
-import { Check, Coins, Crown, Info } from 'lucide-react'
+import { Check, Clock, Coins, Crown, Gift, Info, Loader2 } from 'lucide-react'
 import AppLayout from '../components/AppLayout'
 import Toast from '../components/Toast'
+import { useAuth } from '../context/AuthContext'
+import { useWallet } from '../hooks/useWallet'
 import { useToast } from '../hooks/useToast'
+import { DAILY_CREDITS, formatCredits, formatReset } from '../lib/credits'
 
 const creditPackages = [
   { name: 'Standard', credits: 10, pages: 100, price: '$0.50' },
@@ -10,7 +13,20 @@ const creditPackages = [
   { name: 'Maximum', credits: 50, pages: 500, price: '$1.99' },
 ]
 
+function Stat({ icon: Icon, label, value, note }) {
+  return (
+    <div className="rounded-2xl border-2 border-ink/15 bg-paper p-4 text-center">
+      <Icon className="mx-auto h-5 w-5" />
+      <p className="mt-1 text-2xl font-extrabold">{value}</p>
+      <p className="text-sm font-extrabold">{label}</p>
+      {note && <p className="mt-0.5 text-xs font-semibold text-ink-soft">{note}</p>}
+    </div>
+  )
+}
+
 export default function UpgradePage() {
+  const { user } = useAuth()
+  const { wallet, loading, failed } = useWallet(user?.id)
   const [tab, setTab] = useState('credits')
   const { message, show } = useToast()
 
@@ -22,15 +38,50 @@ export default function UpgradePage() {
   return (
     <AppLayout>
       <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-5 sm:py-12">
-        <h1 className="text-center text-3xl font-extrabold sm:text-4xl">Upgrade your reading</h1>
+        <h1 className="text-center text-3xl font-extrabold sm:text-4xl">Your credits</h1>
         <p className="mx-auto mt-2 max-w-xl text-center font-semibold text-ink-soft">
-          1 credit unlocks 10 pages. Credits never expire.
+          1 credit unlocks 10 pages. Everyone gets {DAILY_CREDITS} free credits every day.
         </p>
 
-        <div className="mx-auto mt-5 flex max-w-xl items-start gap-3 rounded-2xl bg-sky p-4 text-sm font-semibold">
-          <Info className="mt-0.5 h-5 w-5 shrink-0" />
-          <p>Payments are not live yet, and reading is free for now. You do not need credits to read.</p>
-        </div>
+        <section aria-label="Your balance" className="mx-auto mt-6 max-w-2xl rounded-3xl border-2 border-ink bg-white p-4 sm:p-6">
+          {loading && (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-6 w-6 animate-spin" aria-label="Loading" />
+            </div>
+          )}
+          {!loading && (failed || !wallet) && (
+            <p role="alert" className="text-center text-sm font-bold">We could not load your credits. Please refresh the page.</p>
+          )}
+          {!loading && wallet && (
+            <>
+              {wallet.is_pro ? (
+                <p className="text-center text-lg font-extrabold">You have Pro: unlimited reading on available books.</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                  <Stat icon={Coins} label="Total" value={formatCredits(wallet.daily_pages + wallet.paid_pages)} note="available now" />
+                  <Stat icon={Gift} label="Daily" value={formatCredits(wallet.daily_pages)} note={`of ${DAILY_CREDITS} today`} />
+                  <Stat icon={Crown} label="Purchased" value={formatCredits(wallet.paid_pages)} note="never expire" />
+                </div>
+              )}
+              <p className="mt-4 flex items-start gap-2 text-sm font-semibold text-ink-soft">
+                <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+                Your daily credits refresh on {formatReset(wallet.next_reset)}. Unused daily credits do not carry over.
+              </p>
+            </>
+          )}
+        </section>
+
+        <section aria-label="How credits work" className="mx-auto mt-4 max-w-2xl rounded-2xl bg-sky p-4 text-sm font-semibold">
+          <p className="flex items-start gap-2 font-extrabold">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" /> How it works
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-6">
+            <li>Each page you open uses a tenth of a credit. Credits are shared across all your books.</li>
+            <li>A page you open stays unlocked for 24 hours, so you can switch books and come back to where you stopped.</li>
+            <li>Daily credits are used first, then purchased credits. You keep getting daily credits even after you buy credits.</li>
+            <li>Payments are not live yet, so you cannot buy credits right now.</li>
+          </ul>
+        </section>
 
         <div className="mx-auto mt-7 flex max-w-md gap-1 rounded-full border-2 border-ink bg-white p-1" role="tablist">
           <button role="tab" aria-selected={tab === 'credits'} onClick={() => setTab('credits')} className={tabClass(tab === 'credits')}>
@@ -81,7 +132,7 @@ export default function UpgradePage() {
               <h2 className="mt-3 text-2xl font-extrabold">Pro</h2>
               <p className="mt-3 flex items-start justify-center gap-2 text-left font-bold">
                 <Check className="mt-0.5 h-5 w-5 shrink-0 text-lime-deep" />
-                Ad free unlimited reading on available products
+                Unlimited reading on available products
               </p>
               <p className="mt-4 text-3xl font-extrabold">$7.99</p>
               <button

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Heart, Sparkles, Star } from 'lucide-react'
+import { BookOpen, Heart, Star } from 'lucide-react'
 
 export default function BookCard({ book, liked, onToggleFavorite }) {
   const [failed, setFailed] = useState(false)
@@ -25,10 +25,6 @@ export default function BookCard({ book, liked, onToggleFavorite }) {
             />
           )}
         </Link>
-
-        <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-extrabold text-ink">
-          <Sparkles className="h-3 w-3 text-lime-deep" /> AI
-        </span>
 
         <button
           type="button"
