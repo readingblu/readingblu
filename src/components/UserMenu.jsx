@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Heart, Library, LogOut, MessageSquare, Settings, ShieldCheck, User } from 'lucide-react'
+import { Flag, Heart, LayoutDashboard, Library, LogOut, MessageSquare, Settings, ShieldCheck, User } from 'lucide-react'
 
 export default function UserMenu({ profile, onSignOut }) {
   const [open, setOpen] = useState(false)
@@ -50,7 +50,7 @@ export default function UserMenu({ profile, onSignOut }) {
       </button>
 
       {open && (
-        <div role="menu" className="absolute right-0 top-12 z-40 w-56 rounded-2xl border-2 border-ink bg-white p-2 shadow-xl">
+        <div role="menu" className="absolute right-0 top-12 z-40 max-h-[80vh] w-60 overflow-y-auto rounded-2xl border-2 border-ink bg-white p-2 shadow-xl">
           <p className="truncate px-3 py-2 text-sm font-extrabold">{name}</p>
           <div className="my-1 h-px bg-ink/10" />
           <Link role="menuitem" to="/saved" onClick={() => setOpen(false)} className={itemClass}>
@@ -64,11 +64,18 @@ export default function UserMenu({ profile, onSignOut }) {
           </Link>
           {profile?.is_admin && (
             <>
+              <div className="my-1 h-px bg-ink/10" />
+              <Link role="menuitem" to="/admin/dashboard" onClick={() => setOpen(false)} className={itemClass}>
+                <LayoutDashboard className="h-4 w-4" /> Admin: dashboard
+              </Link>
               <Link role="menuitem" to="/admin" onClick={() => setOpen(false)} className={itemClass}>
                 <ShieldCheck className="h-4 w-4" /> Admin: books
               </Link>
               <Link role="menuitem" to="/admin/reviews" onClick={() => setOpen(false)} className={itemClass}>
                 <MessageSquare className="h-4 w-4" /> Admin: reviews
+              </Link>
+              <Link role="menuitem" to="/admin/reports" onClick={() => setOpen(false)} className={itemClass}>
+                <Flag className="h-4 w-4" /> Admin: reports
               </Link>
             </>
           )}

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, BookOpen, Check, Eye, Heart, Loader2, Share2, ShoppingCart, Sparkles } from 'lucide-react'
+import { ArrowLeft, BookOpen, Check, Eye, Flag, Heart, Loader2, Share2, ShoppingCart, Sparkles } from 'lucide-react'
 import AppLayout from '../components/AppLayout'
 import PreviewModal from '../components/PreviewModal'
 import RelatedBooks from '../components/RelatedBooks'
+import ReportModal from '../components/ReportModal'
 import ReviewsSection from '../components/ReviewsSection'
 import Toast from '../components/Toast'
 import { Stars } from '../components/StarRating'
@@ -26,6 +27,7 @@ export default function BookPage() {
   const [coverFailed, setCoverFailed] = useState(false)
   const [owned, setOwned] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -35,6 +37,7 @@ export default function BookPage() {
     setOwned(false)
     setCoverFailed(false)
     setPreviewOpen(false)
+    setReportOpen(false)
     window.scrollTo({ top: 0 })
 
     supabase
@@ -129,6 +132,7 @@ export default function BookPage() {
   }
 
   const closePreview = useCallback(() => setPreviewOpen(false), [])
+  const closeReport = useCallback(() => setReportOpen(false), [])
 
   const hasRating = book && book.rating_count > 0
   const secondaryBtn =
@@ -250,6 +254,14 @@ export default function BookPage() {
                     See your credits
                   </Link>
                 </p>
+
+                <button
+                  type="button"
+                  onClick={() => setReportOpen(true)}
+                  className="mt-3 inline-flex items-center gap-1.5 text-sm font-extrabold text-ink-soft hover:text-ink hover:underline"
+                >
+                  <Flag className="h-4 w-4" /> Report a problem
+                </button>
               </div>
             </div>
 
@@ -266,6 +278,7 @@ export default function BookPage() {
       </div>
 
       {previewOpen && book && <PreviewModal title={book.title} pages={book.book_previews} onClose={closePreview} />}
+      {reportOpen && book && <ReportModal book={book} userId={user.id} onClose={closeReport} notify={show} />}
 
       <Toast message={message} />
     </AppLayout>

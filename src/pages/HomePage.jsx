@@ -6,6 +6,7 @@ import BookCard from '../components/BookCard'
 import CategoryList from '../components/CategoryList'
 import CategoryDrawer from '../components/CategoryDrawer'
 import ContinueReading from '../components/ContinueReading'
+import FeaturedBooks from '../components/FeaturedBooks'
 import Toast from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
 import { useFavorites } from '../hooks/useFavorites'
@@ -193,6 +194,7 @@ export default function HomePage() {
           </button>
 
           {noFilters && <ContinueReading userId={user?.id} />}
+          {noFilters && <FeaturedBooks favoriteIds={favoriteIds} onToggleFavorite={handleFavorite} />}
 
           <div className="mb-4 flex items-end justify-between gap-3">
             <div className="min-w-0">

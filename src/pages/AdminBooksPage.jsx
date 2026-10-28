@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { AlertCircle, BookOpen, Eye, EyeOff, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { AlertCircle, BookOpen, Eye, EyeOff, Loader2, Pencil, Plus, Star, StarOff, Trash2 } from 'lucide-react'
 import AppLayout from '../components/AppLayout'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase'
 import { deleteBookCompletely } from '../lib/bookAssets'
 
 const PAGE_SIZE = 30
-const FIELDS = 'id, title, slug, cover_url, is_published, page_count, created_at'
+const FIELDS = 'id, title, slug, cover_url, is_published, page_count, featured_at, created_at'
 
 function Thumb({ url }) {
   const [failed, setFailed] = useState(false)
@@ -113,6 +113,23 @@ export default function AdminBooksPage() {
     setBusyId(null)
   }
 
+  const toggleFeature = async (book) => {
+    if (!book.is_published && !book.featured_at) {
+      show('Publish the book before featuring it.')
+      return
+    }
+    setBusyId(book.id)
+    const next = book.featured_at ? null : new Date().toISOString()
+    const { error: err } = await supabase.from('books').update({ featured_at: next }).eq('id', book.id)
+    if (err) {
+      show('Could not change the featured status. Please try again.')
+    } else {
+      setBooks((prev) => prev.map((b) => (b.id === book.id ? { ...b, featured_at: next } : b)))
+      show(next ? 'Book is now featured on Home' : 'Book removed from Featured')
+    }
+    setBusyId(null)
+  }
+
   const remove = async (book) => {
     const ok = window.confirm(
       `Delete "${book.title}" permanently?\n\nThis also deletes its pages, previews, reviews, saved hearts and any purchase records for it. If you only want to hide it, use Unpublish instead.`,
@@ -196,6 +213,11 @@ export default function AdminBooksPage() {
                       <span className="rounded-full bg-sky px-2.5 py-1">
                         {book.page_count ? `${book.page_count} pages` : 'No pages yet'}
                       </span>
+                      {book.featured_at && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-lime/60 px-2.5 py-1">
+                          <Star className="h-3 w-3" /> Featured
+                        </span>
+                      )}
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Link to={`/admin/books/${book.id}`} className={smallBtn}>
@@ -204,6 +226,10 @@ export default function AdminBooksPage() {
                       <button type="button" onClick={() => togglePublish(book)} disabled={busyId === book.id} className={smallBtn}>
                         {book.is_published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         {book.is_published ? 'Unpublish' : 'Publish'}
+                      </button>
+                      <button type="button" onClick={() => toggleFeature(book)} disabled={busyId === book.id} className={smallBtn}>
+                        {book.featured_at ? <StarOff className="h-4 w-4" /> : <Star className="h-4 w-4" />}
+                        {book.featured_at ? 'Unfeature' : 'Feature'}
                       </button>
                       <button type="button" onClick={() => remove(book)} disabled={busyId === book.id} className={smallBtn}>
                         <Trash2 className="h-4 w-4" /> Delete

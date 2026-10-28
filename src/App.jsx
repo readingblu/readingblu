@@ -13,9 +13,19 @@ import ReaderPage from './pages/ReaderPage.jsx'
 import AdminBooksPage from './pages/AdminBooksPage.jsx'
 import AdminBookEditPage from './pages/AdminBookEditPage.jsx'
 import AdminReviewsPage from './pages/AdminReviewsPage.jsx'
+import AdminReportsPage from './pages/AdminReportsPage.jsx'
+import AdminDashboardPage from './pages/AdminDashboardPage.jsx'
 import NotFoundPage from './pages/NotFoundPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import AdminRoute from './components/AdminRoute.jsx'
+
+function Admin({ children }) {
+  return (
+    <ProtectedRoute>
+      <AdminRoute>{children}</AdminRoute>
+    </ProtectedRoute>
+  )
+}
 
 export default function App() {
   return (
@@ -81,46 +91,12 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute>
-            <AdminRoute>
-              <AdminBooksPage />
-            </AdminRoute>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/reviews"
-        element={
-          <ProtectedRoute>
-            <AdminRoute>
-              <AdminReviewsPage />
-            </AdminRoute>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/books/new"
-        element={
-          <ProtectedRoute>
-            <AdminRoute>
-              <AdminBookEditPage />
-            </AdminRoute>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/books/:id"
-        element={
-          <ProtectedRoute>
-            <AdminRoute>
-              <AdminBookEditPage />
-            </AdminRoute>
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/admin" element={<Admin><AdminBooksPage /></Admin>} />
+      <Route path="/admin/dashboard" element={<Admin><AdminDashboardPage /></Admin>} />
+      <Route path="/admin/reviews" element={<Admin><AdminReviewsPage /></Admin>} />
+      <Route path="/admin/reports" element={<Admin><AdminReportsPage /></Admin>} />
+      <Route path="/admin/books/new" element={<Admin><AdminBookEditPage /></Admin>} />
+      <Route path="/admin/books/:id" element={<Admin><AdminBookEditPage /></Admin>} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
