@@ -9,28 +9,79 @@ import { DAILY_CREDITS, formatCredits, formatReset } from '../lib/credits'
 const IMG_MAX_HEIGHT = 'calc(100dvh - 10rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))'
 const URL_LIFETIME_SECONDS = 15 * 60
 const URL_REUSE_MS = 10 * 60 * 1000
-const MIN_ZOOM = 30
-const MAX_ZOOM = 300
-const ZOOM_STEP = 10
-const UNLOCK_DELAY_MS = 150 // pause before paying for a page, so fast flipping does not use credits
-const IMG_CACHE_LIMIT = 10
+const MIN_ZOOM = 1
+const MAX_ZOOM = 100
+const ZOOM_HOLD_DELAY_MS = 350 // hold a zoom button this long and it starts repeating
+const ZOOM_HOLD_REPEAT_MS = 45
+const UNLOCK_DELAY_MS = 150 // fast-flip window: while flipping faster than this, only the page you stop on is paid for
+const IMG_CACHE_LIMIT = 6 // previous + current + next two pages, plus a little slack
 
-// Download an image once and keep a reference to it so the browser does not drop it
-function preloadImage(cache, url) {
-  const hit = cache.get(url)
-  if (hit) return hit.promise
+// Stop an image download and drop its pixels so the browser is free to reclaim the memory
+function releaseEntry(entry) {
+  if (!entry) return
+  const { img } = entry
+  img.onload = null
+  img.onerror = null
+  if (!entry.done) entry.reject(new Error('cancelled'))
+  img.removeAttribute('src')
+}
+
+function clearImageCache(cache) {
+  cache.forEach(releaseEntry)
+  cache.clear()
+}
+
+// Cancel downloads that are still running for pages the reader has already flipped past
+function abortPendingImages(cache, keepPaths) {
+  cache.forEach((entry, path) => {
+    if (!entry.done && !keepPaths.has(path)) {
+      cache.delete(path)
+      releaseEntry(entry)
+    }
+  })
+}
+
+// Download + decode an image once and keep a reference so the next page appears instantly.
+// Cached by storage path (signed URLs change), least recently used goes first.
+function preloadImage(cache, path, url) {
+  const hit = cache.get(path)
+  if (hit) {
+    if (hit.url === url) {
+      cache.delete(path)
+      cache.set(path, hit)
+      return hit.promise
+    }
+    cache.delete(path)
+    releaseEntry(hit)
+  }
   const img = new Image()
-  const promise = new Promise((resolve, reject) => {
-    img.onload = () => resolve(img)
+  img.decoding = 'async'
+  const entry = { url, img, done: false, promise: null, reject: null }
+  entry.promise = new Promise((resolve, reject) => {
+    entry.reject = reject
+    img.onload = async () => {
+      try {
+        if (img.decode) await img.decode() // decode now so painting the page later is instant
+      } catch {
+        // it still shows fine without pre-decoding
+      }
+      entry.done = true
+      resolve(img)
+    }
     img.onerror = () => {
-      cache.delete(url)
+      if (cache.get(path) === entry) cache.delete(path)
       reject(new Error('Could not load the page image.'))
     }
   })
+  entry.promise.catch(() => {})
   img.src = url
-  cache.set(url, { img, promise })
-  while (cache.size > IMG_CACHE_LIMIT) cache.delete(cache.keys().next().value)
-  return promise
+  cache.set(path, entry)
+  while (cache.size > IMG_CACHE_LIMIT) {
+    const [oldPath, oldEntry] = cache.entries().next().value
+    cache.delete(oldPath)
+    releaseEntry(oldEntry)
+  }
+  return entry.promise
 }
 
 function useIsDesktop() {
@@ -45,13 +96,22 @@ function useIsDesktop() {
   return match
 }
 
-async function signPath(cache, path) {
+function signPath(cache, path) {
   const hit = cache.get(path)
-  if (hit && Date.now() - hit.at < URL_REUSE_MS) return hit.url
-  const { data, error } = await supabase.storage.from('book-pages').createSignedUrl(path, URL_LIFETIME_SECONDS)
-  if (error || !data?.signedUrl) throw error || new Error('Could not open the page.')
-  cache.set(path, { url: data.signedUrl, at: Date.now() })
-  return data.signedUrl
+  if (hit && Date.now() - hit.at < URL_REUSE_MS) return hit.promise
+  const entry = { at: Date.now(), promise: null }
+  entry.promise = supabase.storage
+    .from('book-pages')
+    .createSignedUrl(path, URL_LIFETIME_SECONDS)
+    .then(({ data, error }) => {
+      if (error || !data?.signedUrl) throw error || new Error('Could not open the page.')
+      return data.signedUrl
+    })
+  entry.promise.catch(() => {
+    if (cache.get(path) === entry) cache.delete(path)
+  })
+  cache.set(path, entry)
+  return entry.promise
 }
 
 function readLocalProgress(bookId, total) {
@@ -100,17 +160,26 @@ export default function ReaderPage() {
   const [zoomPct, setZoomPct] = useState(null) // null = fit to screen
   const [nat, setNat] = useState(null) // natural size of the current page image
   const [box, setBox] = useState({ w: 0, h: 0 }) // space available for the page
+  const [mainEl, setMainEl] = useState(null)
 
   const isDesktop = useIsDesktop()
 
-  const mainRef = useRef(null)
   const touch = useRef(null)
   const pending = useRef(null)
   const unlocked = useRef(new Map()) // page_number -> expiry (ms)
   const urlCache = useRef(new Map())
-  const imgCache = useRef(new Map()) // url -> { img, promise } (keeps preloaded images alive)
+  const imgCache = useRef(new Map()) // storage path -> { url, img, promise } (keeps preloaded images alive)
+  const unlockInflight = useRef(new Map()) // page_number -> unlock_page call already running
+  const walletSeq = useRef(0)
+  const walletApplied = useRef(0)
+  const indexRef = useRef(0) // always the latest index, even between renders
+  const shownIdxRef = useRef(-1) // index of the page currently on screen
+  const lastNavAt = useRef(0)
+  const scrubbing = useRef(false)
+  const zoomHold = useRef({ delay: null, repeat: null })
+  const fitRef = useRef(100)
   const leaving = useRef(false)
-  const guardOn = useRef(false)
+  const guardDepth = useRef(0)
   const startIdx = useRef(null)
 
   const total = rows.length
@@ -123,12 +192,42 @@ export default function ReaderPage() {
   const shownPct = Math.round(scalePct)
   const isZoomed = zoomPct !== null && zoomPct > fitPct + 0.5
 
-  // Snap to the next/previous step of 10 (97% -> 100% or 90%)
-  const zoomBy = (dir) => {
-    const r = scalePct / ZOOM_STEP
-    const next = (dir > 0 ? Math.floor(r + 0.001) + 1 : Math.ceil(r - 0.001) - 1) * ZOOM_STEP
-    setZoomPct(Math.min(Math.max(next, MIN_ZOOM), MAX_ZOOM))
-  }
+  useEffect(() => {
+    fitRef.current = fitPct
+  }, [fitPct])
+
+  // One percent per step, from MIN_ZOOM to MAX_ZOOM
+  const zoomBy = useCallback((dir) => {
+    setZoomPct((z) => {
+      let cur = Math.round(z ?? fitRef.current)
+      if ((dir > 0 && cur >= MAX_ZOOM) || (dir < 0 && cur <= MIN_ZOOM)) return z
+      if (dir < 0) cur = Math.min(cur, MAX_ZOOM + 1) // a fit above the maximum steps down to the maximum
+      return cur + dir
+    })
+  }, [])
+
+  const stopZoomHold = useCallback(() => {
+    clearTimeout(zoomHold.current.delay)
+    clearInterval(zoomHold.current.repeat)
+    window.removeEventListener('pointerup', stopZoomHold)
+    window.removeEventListener('pointercancel', stopZoomHold)
+  }, [])
+
+  // Press = one step, hold = keeps stepping, so 1% steps are still quick to travel
+  const startZoomHold = useCallback(
+    (dir) => {
+      stopZoomHold()
+      zoomBy(dir)
+      zoomHold.current.delay = setTimeout(() => {
+        zoomHold.current.repeat = setInterval(() => zoomBy(dir), ZOOM_HOLD_REPEAT_MS)
+      }, ZOOM_HOLD_DELAY_MS)
+      window.addEventListener('pointerup', stopZoomHold)
+      window.addEventListener('pointercancel', stopZoomHold)
+    },
+    [zoomBy, stopZoomHold],
+  )
+
+  useEffect(() => stopZoomHold, [stopZoomHold])
 
   const flush = useCallback(() => {
     const p = pending.current
@@ -143,6 +242,33 @@ export default function ReaderPage() {
       .then(() => {})
   }, [userId])
 
+  // One place that talks to unlock_page. Results are recorded even if the reader has already moved on
+  // (the page may be paid for by then), identical calls are shared, and an older balance never
+  // overwrites a newer one.
+  const unlockPage = useCallback((bookId, pageNumber) => {
+    const inflight = unlockInflight.current
+    const existing = inflight.get(pageNumber)
+    if (existing) return existing
+    const openMap = unlocked.current
+    const seq = ++walletSeq.current
+    const promise = Promise.resolve(supabase.rpc('unlock_page', { p_book: bookId, p_page: pageNumber }))
+      .then(({ data, error }) => {
+        if (!error && data) {
+          if (data.wallet && seq > walletApplied.current) {
+            walletApplied.current = seq
+            setWallet(data.wallet)
+          }
+          if (data.status === 'ok') openMap.set(pageNumber, Date.parse(data.expires_at))
+        }
+        return { data, error }
+      })
+      .finally(() => {
+        if (inflight.get(pageNumber) === promise) inflight.delete(pageNumber)
+      })
+    inflight.set(pageNumber, promise)
+    return promise
+  }, [])
+
   // Load the book, its page list, your balance, your open pages and your bookmark
   useEffect(() => {
     let active = true
@@ -150,9 +276,13 @@ export default function ReaderPage() {
     setBook(null)
     setRows([])
     setPageUrl(null)
+    clearImageCache(imgCache.current) // emptied in place: the Map itself never changes, so effects can safely capture it
     unlocked.current = new Map()
     urlCache.current = new Map()
-    imgCache.current = new Map()
+    unlockInflight.current = new Map()
+    shownIdxRef.current = -1
+    setNat(null)
+    setZoomPct(null)
 
     ;(async () => {
       try {
@@ -195,6 +325,7 @@ export default function ReaderPage() {
         setBook(b)
         setRows(list)
         setWallet(walletRes.data)
+        indexRef.current = start
         setIndex(start)
         setSliderValue(start + 1)
         setState('ready')
@@ -215,92 +346,115 @@ export default function ReaderPage() {
     const row = rows[index]
     if (!row) return undefined
     let active = true
+    const imgs = imgCache.current
+    const urls = urlCache.current
+    const isOpen = () => (unlocked.current.get(row.page_number) || 0) > Date.now()
+
+    // Stop downloads that belong to pages the reader has already flipped past
+    const keep = new Set([row.storage_path])
+    ;[-1, 1, 2].forEach((d) => {
+      if (rows[index + d]) keep.add(rows[index + d].storage_path)
+    })
+    abortPendingImages(imgs, keep)
+
     setPageStatus('loading')
 
-    const loadPage = async (path) => {
-      const url = await signPath(urlCache.current, path)
-      const img = await preloadImage(imgCache.current, url)
+    // Gives up quietly (null) as soon as the reader has left this page
+    const loadPage = async () => {
+      const url = await signPath(urls, row.storage_path)
+      if (!active) return null
+      const img = await preloadImage(imgs, row.storage_path, url)
       return { url, img }
     }
 
     // Sign and download the image while the unlock check runs. It is only SHOWN after the unlock succeeds.
-    const warm = loadPage(row.storage_path).catch(() => null)
+    const warm = loadPage().catch(() => null)
 
     const run = async () => {
       try {
-        const expiry = unlocked.current.get(row.page_number)
-        if (!expiry || expiry <= Date.now()) {
-          const { data, error } = await supabase.rpc('unlock_page', { p_book: book.id, p_page: row.page_number })
+        if (!isOpen()) {
+          const { data, error } = await unlockPage(book.id, row.page_number)
           if (!active) return
           if (error || !data) throw error || new Error('Could not unlock the page.')
-          if (data.wallet) setWallet(data.wallet)
           if (data.status === 'no_credits') {
+            shownIdxRef.current = -1
             setPageUrl(null)
             setPageStatus('nocredits')
             return
           }
           if (data.status !== 'ok') throw new Error('Could not unlock the page.')
-          unlocked.current.set(row.page_number, Date.parse(data.expires_at))
         }
-        const loaded = (await warm) || (await loadPage(row.storage_path))
-        if (!active) return
+        const loaded = (await warm) || (await loadPage())
+        if (!active || !loaded) return
+        // A different page starts at "fit to screen" so an old zoom never carries onto it
+        if (shownIdxRef.current !== index) setZoomPct(null)
+        shownIdxRef.current = index
         setNat({ w: loaded.img.naturalWidth, h: loaded.img.naturalHeight })
         setPageUrl(loaded.url)
         setShownIdx(index)
         setPageStatus('ready')
       } catch {
         if (active) {
+          shownIdxRef.current = -1
           setPageUrl(null)
           setPageStatus('error')
         }
       }
     }
 
-    // A short pause means flipping quickly past a page does not use credits
-    const alreadyOpen = (unlocked.current.get(row.page_number) || 0) > Date.now()
-    const timer = setTimeout(run, alreadyOpen ? 0 : UNLOCK_DELAY_MS)
+    // Flipping very fast waits a moment so skipped pages are not paid for.
+    // A normal, deliberate flip (no other flip just before it) opens right away.
+    const now = Date.now()
+    const sincePrev = now - lastNavAt.current
+    lastNavAt.current = now
+    const delay = isOpen() || sincePrev > UNLOCK_DELAY_MS ? 0 : UNLOCK_DELAY_MS
+    let timer
+    if (delay === 0) run()
+    else timer = setTimeout(run, delay)
     return () => {
       active = false
       clearTimeout(timer)
     }
-  }, [state, rows, index, book, pageTick])
+  }, [state, rows, index, book, pageTick, unlockPage])
 
-  // Get the next pages ready: sign their links and download the images ahead of time.
+  // Get the neighbouring pages ready: sign their links and download the images ahead of time.
   // This never unlocks or charges anything; a page is still only shown after unlock_page succeeds.
   useEffect(() => {
-    if (state !== 'ready' || pageStatus !== 'ready') return
-    ;[1, 2].forEach(async (d) => {
+    if (state !== 'ready' || pageStatus !== 'ready') return undefined
+    let active = true
+    const imgs = imgCache.current
+    const urls = urlCache.current
+    ;[1, 2, -1].forEach(async (d) => {
       const row = rows[index + d]
       if (!row) return
       const expiry = unlocked.current.get(row.page_number)
       const open = expiry && expiry > Date.now()
-      if (d === 2 && !open) return // only the very next page is prepared when it is not open yet
+      if (d !== 1 && !open) return // beyond the very next page, only pages that are already open are prepared
       try {
-        const url = await signPath(urlCache.current, row.storage_path)
-        await preloadImage(imgCache.current, url)
+        const url = await signPath(urls, row.storage_path)
+        if (!active) return
+        await preloadImage(imgs, row.storage_path, url)
       } catch {
         // ignore preload problems
       }
     })
+    return () => {
+      active = false
+    }
   }, [state, rows, index, pageStatus])
 
-  const step = useCallback(
-    (delta) => {
-      setIndex((i) => Math.min(Math.max(i + delta, 0), Math.max(total - 1, 0)))
+  // Index and slider always move together; indexRef keeps quick repeated presses (key held down) correct
+  const goTo = useCallback(
+    (n) => {
+      const next = Math.min(Math.max(n, 0), Math.max(total - 1, 0))
+      indexRef.current = next
+      setIndex(next)
+      setSliderValue(next + 1)
     },
     [total],
   )
-
-  const jump = useCallback(
-    (value) => {
-      setIndex(Math.min(Math.max(value, 0), Math.max(total - 1, 0)))
-    },
-    [total],
-  )
-
-  useEffect(() => {
-    setSliderValue(index + 1)
-  }, [index])
+  const step = useCallback((delta) => goTo(indexRef.current + delta), [goTo])
+  const jump = goTo
 
   // Remember where the reader stopped
   useEffect(() => {
@@ -318,16 +472,41 @@ export default function ReaderPage() {
 
   useEffect(() => () => flush(), [flush])
 
-  // Track the space available for the page so "fit" always fits
+  // Track the space available for the page so "fit" always fits.
+  // Measuring is deferred to the next frame and skipped when nothing changed, which keeps
+  // ResizeObserver from reporting "loop completed with undelivered notifications".
   useEffect(() => {
-    const el = mainRef.current
-    if (!el) return undefined
-    const measure = () => setBox({ w: el.clientWidth - 16, h: el.clientHeight - 16 })
+    if (!mainEl) return undefined
+    let frame = 0
+    const measure = () => {
+      frame = 0
+      const cs = window.getComputedStyle(mainEl)
+      const w = Math.max(0, Math.floor(mainEl.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)))
+      const h = Math.max(0, Math.floor(mainEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)))
+      setBox((prev) => (prev.w === w && prev.h === h ? prev : { w, h }))
+    }
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(measure)
+    }
     measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [state, total])
+    const ro = new ResizeObserver(schedule)
+    ro.observe(mainEl)
+    return () => {
+      ro.disconnect()
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+  }, [mainEl])
+
+  // A newly shown page always starts at its top-left corner
+  useEffect(() => {
+    if (mainEl) mainEl.scrollTo(0, 0)
+  }, [mainEl, shownIdx])
+
+  // Release every preloaded image when the reader closes
+  useEffect(() => {
+    const imgs = imgCache.current // captured in the effect body; same Map for the whole life of the component
+    return () => clearImageCache(imgs)
+  }, [])
 
   // Lock page scrolling behind the reader
   useEffect(() => {
@@ -338,22 +517,30 @@ export default function ReaderPage() {
     }
   }, [])
 
-  // Phone and browser Back button: show the "come back within 24 hours" message first
+  // Phone and browser Back button: show the "come back within 24 hours" message first.
+  // One guard entry sits on top of the reader's history entry. It is added only once (never stacked,
+  // even if this effect runs again) and remembers how the reader was opened, so Leave can undo exactly
+  // what was added.
   useEffect(() => {
     if (state !== 'ready' || total === 0) return undefined
-    startIdx.current = window.history.state?.idx ?? null
-    window.history.pushState({ rbGuard: true }, '')
-    guardOn.current = true
+    const current = window.history.state
+    if (current?.rbGuard) {
+      startIdx.current = typeof current.rbStartIdx === 'number' ? current.rbStartIdx : null
+    } else {
+      startIdx.current = typeof current?.idx === 'number' ? current.idx : null
+      window.history.pushState({ rbGuard: true, rbStartIdx: startIdx.current }, '')
+    }
+    guardDepth.current = 1
 
     const onPop = () => {
       if (leaving.current) return
       setLeaveOpen(true)
-      window.history.pushState({ rbGuard: true }, '')
+      window.history.pushState({ rbGuard: true, rbStartIdx: startIdx.current }, '')
+      guardDepth.current = 1
     }
     window.addEventListener('popstate', onPop)
     return () => {
       window.removeEventListener('popstate', onPop)
-      guardOn.current = false
     }
   }, [state, total])
 
@@ -361,11 +548,30 @@ export default function ReaderPage() {
     flush()
     leaving.current = true
     setLeaveOpen(false)
-    if (guardOn.current && typeof startIdx.current === 'number' && startIdx.current > 0) {
-      window.history.go(-2)
+    const bookPath = `/book/${slug}`
+    const depth = guardDepth.current
+    if (typeof startIdx.current === 'number' && startIdx.current > 0) {
+      // Opened from inside the app: step back over the guard and the reader to the page before it
+      window.history.go(-(depth + 1))
+    } else if (depth > 0) {
+      // Opened directly (shared link): step back over the guard first, then REPLACE the reader entry
+      // with the book page, so Back from the book page can never land on the reader again
+      let done = false
+      const finish = () => {
+        if (done) return
+        done = true
+        window.removeEventListener('popstate', finish)
+        navigate(bookPath, { replace: true })
+      }
+      window.addEventListener('popstate', finish)
+      window.history.go(-depth)
+      setTimeout(finish, 400) // safety net if the browser never reports the move
     } else {
-      navigate(`/book/${slug}`, { replace: true })
+      navigate(bookPath, { replace: true })
     }
+    setTimeout(() => {
+      leaving.current = false
+    }, 1500)
   }
 
   const onBackClick = () => {
@@ -437,11 +643,20 @@ export default function ReaderPage() {
     if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx > 0 ? -1 : 1)
   }
 
+  const beginScrub = () => {
+    scrubbing.current = true
+  }
+  const commitScrub = (e) => {
+    if (!scrubbing.current) return
+    scrubbing.current = false
+    jump(Number(e.currentTarget.value) - 1)
+  }
+
   const block = (e) => e.preventDefault()
   const watermarkText = `${user?.email || 'ReadingBlu reader'} · ${(user?.id || '').slice(0, 6)} · ReadingBlu`
   const navBtn =
     'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-ink shadow disabled:opacity-30'
-  const zoomBtn = 'inline-flex h-9 w-9 items-center justify-center rounded-full disabled:opacity-30'
+  const zoomBtn = 'inline-flex h-9 w-9 touch-manipulation items-center justify-center rounded-full disabled:opacity-30'
   const creditsLabel = wallet ? (wallet.is_pro ? '∞' : formatCredits(wallet.daily_pages + wallet.paid_pages)) : ''
 
   return (
@@ -467,7 +682,7 @@ export default function ReaderPage() {
             <p className="truncate text-sm font-extrabold">{book?.title ?? 'Reader'}</p>
             {state === 'ready' && total > 0 && (
               <p className="text-xs font-bold text-white/70">
-                Page {index + 1} of {total}
+                Page {sliderValue} of {total}
               </p>
             )}
           </div>
@@ -475,8 +690,9 @@ export default function ReaderPage() {
             <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/15 p-0.5">
               <button
                 type="button"
-                onClick={() => zoomBy(-1)}
-                disabled={scalePct <= MIN_ZOOM}
+                onPointerDown={() => startZoomHold(-1)}
+                onClick={(e) => e.detail === 0 && zoomBy(-1)}
+                disabled={shownPct <= MIN_ZOOM}
                 aria-label="Zoom out"
                 className={zoomBtn}
               >
@@ -493,8 +709,9 @@ export default function ReaderPage() {
               </button>
               <button
                 type="button"
-                onClick={() => zoomBy(1)}
-                disabled={scalePct >= MAX_ZOOM}
+                onPointerDown={() => startZoomHold(1)}
+                onClick={(e) => e.detail === 0 && zoomBy(1)}
+                disabled={shownPct >= MAX_ZOOM}
                 aria-label="Zoom in"
                 className={zoomBtn}
               >
@@ -550,7 +767,7 @@ export default function ReaderPage() {
         {state === 'ready' && total > 0 && (
           <>
             <main
-              ref={mainRef}
+              ref={setMainEl}
               className="relative flex min-h-0 flex-1 overflow-auto px-2 py-2"
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
@@ -628,10 +845,20 @@ export default function ReaderPage() {
                 max={total}
                 value={sliderValue}
                 disabled={total < 2}
-                onChange={(e) => setSliderValue(Number(e.target.value))}
-                onPointerUp={(e) => jump(Number(e.currentTarget.value) - 1)}
-                onTouchEnd={(e) => jump(Number(e.currentTarget.value) - 1)}
-                onKeyUp={(e) => jump(Number(e.currentTarget.value) - 1)}
+                onChange={(e) => {
+                  const v = Number(e.target.value)
+                  setSliderValue(v) // header follows the thumb while dragging
+                  if (!scrubbing.current) jump(v - 1) // changes that are not a drag or key press (assistive tech)
+                }}
+                onPointerDown={beginScrub}
+                onTouchStart={beginScrub}
+                onKeyDown={beginScrub}
+                onPointerUp={commitScrub}
+                onPointerCancel={commitScrub}
+                onTouchEnd={commitScrub}
+                onTouchCancel={commitScrub}
+                onKeyUp={commitScrub}
+                onBlur={commitScrub}
                 aria-label="Go to page"
                 className="h-2 min-w-0 flex-1 accent-lime"
               />
