@@ -16,6 +16,9 @@ import { supabase } from '../lib/supabase'
 const PAGE_SIZE = 25
 const SORTS = ['newest', 'rating', 'title']
 
+// Fewer columns = wider, boxier cards. The loading skeleton uses the same classes so nothing jumps.
+const GRID_CLASSES = 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4'
+
 function fetchBooks(offset, categoryId, search, sort) {
   let query = supabase
     .from('books')
@@ -42,13 +45,13 @@ function fetchBooks(offset, categoryId, search, sort) {
 
 function SkeletonGrid() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5" aria-hidden="true">
-      {Array.from({ length: 10 }).map((_, i) => (
+    <div className={GRID_CLASSES} aria-hidden="true">
+      {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="animate-pulse rounded-2xl border-2 border-ink/10 bg-white p-2 sm:p-3">
-          <div className="aspect-[2/3] w-full rounded-xl bg-sky" />
+          <div className="aspect-square w-full rounded-xl bg-sky" />
           <div className="mt-3 h-4 w-3/4 rounded bg-sky" />
           <div className="mt-2 h-3 w-1/2 rounded bg-sky" />
-          <div className="mt-3 h-10 w-full rounded-full bg-sky" />
+          <div className="mt-3 h-9 w-full rounded-full bg-sky" />
         </div>
       ))}
     </div>
@@ -260,7 +263,7 @@ export default function HomePage() {
 
           {!loading && !error && books.length > 0 && (
             <>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
+              <div className={GRID_CLASSES}>
                 {books.map((book) => (
                   <BookCard key={book.id} book={book} liked={favoriteIds.has(book.id)} onToggleFavorite={handleFavorite} />
                 ))}

@@ -2,16 +2,16 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BookOpen, Heart, Star } from 'lucide-react'
 
-// Cover shape: width / height. 2/3 is tall and thin, 1/1 is a full square.
-// 4/5 sits in between: almost a box, still a little taller than wide.
-const COVER_RATIO = 'aspect-[4/5]'
+// Cover shape: width / height. Square covers make the whole card shorter, so it reads as a box.
+// Try aspect-[9/10] for a hint more height, or aspect-[5/4] for an even shorter card.
+const COVER_RATIO = 'aspect-square'
 
 export default function BookCard({ book, liked, onToggleFavorite }) {
   const [failed, setFailed] = useState(false)
   const hasRating = book.rating_count > 0
 
   return (
-    <article className="flex min-w-0 flex-col rounded-2xl border-2 border-ink bg-white p-2 shadow-[0_4px_0_0_var(--color-ink)] sm:p-3">
+    <article className="flex h-full min-w-0 flex-col rounded-2xl border-2 border-ink bg-white p-2 shadow-[0_4px_0_0_var(--color-ink)] sm:p-3">
       <div className="relative">
         <Link to={`/book/${book.slug}`} tabIndex={-1} aria-hidden="true" className="block">
           {failed || !book.cover_url ? (
@@ -25,7 +25,7 @@ export default function BookCard({ book, liked, onToggleFavorite }) {
               loading="lazy"
               draggable="false"
               onError={() => setFailed(true)}
-              className={`${COVER_RATIO} w-full rounded-xl bg-sky object-cover`}
+              className={`${COVER_RATIO} w-full rounded-xl bg-sky object-cover object-top`}
             />
           )}
         </Link>
@@ -41,7 +41,7 @@ export default function BookCard({ book, liked, onToggleFavorite }) {
         </button>
       </div>
 
-      <h3 className="mt-2 line-clamp-2 min-h-9 text-sm font-bold leading-tight sm:min-h-10 sm:text-base">{book.title}</h3>
+      <h3 className="mt-2 line-clamp-2 text-sm font-bold leading-tight sm:text-base">{book.title}</h3>
 
       <div className="mt-1 flex items-center gap-1 text-xs font-bold text-ink-soft sm:text-sm">
         <Star className="h-4 w-4 shrink-0 fill-lime text-lime-deep" />
@@ -56,7 +56,7 @@ export default function BookCard({ book, liked, onToggleFavorite }) {
 
       <Link
         to={`/book/${book.slug}`}
-        className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-full bg-lime text-sm font-extrabold text-ink shadow-[0_3px_0_0_var(--color-ink)] transition hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none"
+        className="mt-auto inline-flex h-9 w-full items-center justify-center rounded-full bg-lime text-sm font-extrabold text-ink shadow-[0_3px_0_0_var(--color-ink)] transition hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none"
       >
         View
       </Link>
