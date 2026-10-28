@@ -1,9 +1,11 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { authUrl } from '../lib/nav'
 
 export default function ProtectedRoute({ children }) {
   const { session, loading } = useAuth()
+  const { pathname, search } = useLocation()
 
   if (loading) {
     return (
@@ -13,6 +15,6 @@ export default function ProtectedRoute({ children }) {
     )
   }
 
-  if (!session) return <Navigate to="/auth" replace />
+  if (!session) return <Navigate to={authUrl(`${pathname}${search}`)} replace />
   return children
 }

@@ -10,12 +10,14 @@ import Toast from '../components/Toast'
 import { Stars } from '../components/StarRating'
 import { useAuth } from '../context/AuthContext'
 import { useFavorites } from '../hooks/useFavorites'
+import { usePageMeta } from '../hooks/usePageMeta'
 import { useToast } from '../hooks/useToast'
+import { authUrl } from '../lib/nav'
 import { supabase } from '../lib/supabase'
 
 export default function BookPage() {
   const { slug } = useParams()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const { ids: favoriteIds, toggle } = useFavorites(user?.id)
@@ -67,6 +69,15 @@ export default function BookPage() {
   const bookId = book?.id
   const userId = user?.id
 
+  usePageMeta({
+    title: book ? `${book.title} · ReadingBlu` : '',
+    description: book
+      ? (book.description || `Read “${book.title}” by ${book.author} on ReadingBlu.`).replace(/\s+/g, ' ').slice(0, 200)
+      : '',
+    image: book?.cover_url || '',
+    path: book ? `/book/${slug}` : '',
+  })
+
   useEffect(() => {
     if (!bookId || !userId) return undefined
     let active = true
@@ -92,12 +103,18 @@ export default function BookPage() {
 
   const goBack = () => {
     if (location.key !== 'default') navigate(-1)
-    else navigate('/home')
+    else navigate(user ? '/home' : '/')
   }
+
+  const needLogin = (next, mode) => navigate(authUrl(next || `/book/${slug}`, mode))
 
   const saved = bookId ? favoriteIds.has(bookId) : false
 
   const handleSave = async () => {
+    if (!user) {
+      needLogin()
+      return
+    }
     const wasSaved = saved
     const ok = await toggle(bookId)
     if (!ok) show('Could not update your saved books. Please try again.')
@@ -105,6 +122,10 @@ export default function BookPage() {
   }
 
   const handleOtherFavorite = async (id) => {
+    if (!user) {
+      needLogin()
+      return
+    }
     const ok = await toggle(id)
     if (!ok) show('Could not update your saved books. Please try again.')
   }
@@ -129,6 +150,22 @@ export default function BookPage() {
       return
     }
     setPreviewOpen(true)
+  }
+
+  const handleRead = () => {
+    if (!user) {
+      needLogin(`/read/${slug}`, 'signup')
+      return
+    }
+    navigate(`/read/${slug}`)
+  }
+
+  const handleReport = () => {
+    if (!user) {
+      needLogin()
+      return
+    }
+    setReportOpen(true)
   }
 
   const closePreview = useCallback(() => setPreviewOpen(false), [])
@@ -162,6 +199,12 @@ export default function BookPage() {
           <div className="mt-8 rounded-3xl border-2 border-ink bg-white p-8 text-center">
             <p className="text-lg font-extrabold">Book not found</p>
             <p className="mt-1 text-sm font-semibold text-ink-soft">It may have been removed or is not published.</p>
+            <Link
+              to={user ? '/home' : '/'}
+              className="mt-4 inline-flex rounded-full bg-lime px-6 py-2.5 font-extrabold shadow-[0_3px_0_0_var(--color-ink)]"
+            >
+              {user ? 'Browse books' : 'Go to ReadingBlu'}
+            </Link>
           </div>
         )}
 
@@ -218,7 +261,7 @@ export default function BookPage() {
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
-                    onClick={() => navigate(`/read/${slug}`)}
+                    onClick={handleRead}
                     className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime px-6 font-extrabold shadow-[0_4px_0_0_var(--color-ink)] transition hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none sm:w-auto"
                   >
                     <BookOpen className="h-5 w-5" /> Read
@@ -248,16 +291,22 @@ export default function BookPage() {
                   </button>
                 </div>
 
-                <p className="mt-3 text-sm font-semibold text-ink-soft">
-                  Reading uses credits: 1 credit unlocks 10 pages, and you get 2 free credits every day.{' '}
-                  <Link to="/upgrade" className="font-extrabold text-ink underline">
-                    See your credits
-                  </Link>
-                </p>
+                {user ? (
+                  <p className="mt-3 text-sm font-semibold text-ink-soft">
+                    Reading uses credits: 1 credit unlocks 10 pages, and you get 2 free credits every day.{' '}
+                    <Link to="/upgrade" className="font-extrabold text-ink underline">
+                      See your credits
+                    </Link>
+                  </p>
+                ) : (
+                  <p className="mt-3 text-sm font-semibold text-ink-soft">
+                    Sign up free and get 2 free credits every day. 1 credit unlocks 10 pages.
+                  </p>
+                )}
 
                 <button
                   type="button"
-                  onClick={() => setReportOpen(true)}
+                  onClick={handleReport}
                   className="mt-3 inline-flex items-center gap-1.5 text-sm font-extrabold text-ink-soft hover:text-ink hover:underline"
                 >
                   <Flag className="h-4 w-4" /> Report a problem
@@ -272,13 +321,30 @@ export default function BookPage() {
               onToggleFavorite={handleOtherFavorite}
             />
 
-            <ReviewsSection key={book.id} bookId={book.id} userId={user.id} onChanged={refreshRating} notify={show} />
+            {!authLoading && user && (
+              <ReviewsSection key={book.id} bookId={book.id} userId={user.id} onChanged={refreshRating} notify={show} />
+            )}
+
+            {!authLoading && !user && (
+              <section aria-labelledby="reviews-heading" className="mt-10 rounded-3xl border-2 border-ink bg-white p-6 text-center">
+                <h2 id="reviews-heading" className="text-2xl font-extrabold">
+                  Ratings & reviews
+                </h2>
+                <p className="mt-2 font-semibold text-ink-soft">Log in to read reviews and share your own feedback.</p>
+                <Link
+                  to={authUrl(`/book/${slug}`)}
+                  className="mt-4 inline-flex h-11 items-center rounded-full bg-lime px-6 font-extrabold shadow-[0_3px_0_0_var(--color-ink)]"
+                >
+                  Log in
+                </Link>
+              </section>
+            )}
           </>
         )}
       </div>
 
       {previewOpen && book && <PreviewModal title={book.title} pages={book.book_previews} onClose={closePreview} />}
-      {reportOpen && book && <ReportModal book={book} userId={user.id} onClose={closeReport} notify={show} />}
+      {reportOpen && book && user && <ReportModal book={book} userId={user.id} onClose={closeReport} notify={show} />}
 
       <Toast message={message} />
     </AppLayout>

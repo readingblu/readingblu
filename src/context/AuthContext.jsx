@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { safeNext } from '../lib/nav'
 
 const AuthContext = createContext(null)
 
@@ -29,10 +30,13 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const signInWithGoogle = useCallback(async () => {
+  // "next" is an on-site path to open after signing in, for example /book/the-moon-rabbit
+  const signInWithGoogle = useCallback(async (next) => {
+    const target = safeNext(next)
+    const redirectTo = target ? `${window.location.origin}/continue${target}` : `${window.location.origin}/home`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/home` },
+      options: { redirectTo },
     })
     return { error }
   }, [])

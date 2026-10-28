@@ -3,6 +3,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { Loader2, Lock, Mail } from 'lucide-react'
 import Logo from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
+import { safeNext } from '../lib/nav'
 
 function GoogleIcon() {
   return (
@@ -19,17 +20,25 @@ export default function AuthPage() {
   const { session, loading, signInWithGoogle } = useAuth()
   const [params, setParams] = useSearchParams()
   const mode = params.get('mode') === 'signup' ? 'signup' : 'login'
+  const next = safeNext(params.get('next'))
   const [accepted, setAccepted] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  if (!loading && session) return <Navigate to="/home" replace />
+  if (!loading && session) return <Navigate to={next || '/home'} replace />
+
+  const switchMode = (m) => {
+    const p = {}
+    if (m === 'signup') p.mode = 'signup'
+    if (next) p.next = next
+    setParams(p)
+  }
 
   const handleGoogle = async () => {
     if (!accepted) return
     setBusy(true)
     setError('')
-    const { error: err } = await signInWithGoogle()
+    const { error: err } = await signInWithGoogle(next)
     if (err) {
       setError(err.message || 'Could not start Google sign-in. Please try again.')
       setBusy(false)
@@ -48,16 +57,18 @@ export default function AuthPage() {
 
         <div className="rounded-3xl border-2 border-ink bg-white p-6 shadow-[0_6px_0_0_var(--color-ink)] sm:p-8">
           <div className="flex gap-1 rounded-full border-2 border-ink p-1" role="tablist">
-            <button role="tab" aria-selected={mode === 'login'} className={tabClass(mode === 'login')} onClick={() => setParams({})}>
+            <button role="tab" aria-selected={mode === 'login'} className={tabClass(mode === 'login')} onClick={() => switchMode('login')}>
               Log in
             </button>
-            <button role="tab" aria-selected={mode === 'signup'} className={tabClass(mode === 'signup')} onClick={() => setParams({ mode: 'signup' })}>
+            <button role="tab" aria-selected={mode === 'signup'} className={tabClass(mode === 'signup')} onClick={() => switchMode('signup')}>
               Sign up
             </button>
           </div>
 
           <h1 className="mt-5 text-center text-2xl font-extrabold">{mode === 'signup' ? 'Create your free account' : 'Welcome back'}</h1>
-          <p className="mt-1 text-center text-sm font-semibold text-ink-soft">Stories for readers of all ages.</p>
+          <p className="mt-1 text-center text-sm font-semibold text-ink-soft">
+            Stories for readers of all ages. Get 2 free credits every day.
+          </p>
 
           <label className="mt-5 flex cursor-pointer items-start gap-3 text-sm font-semibold text-ink-soft">
             <input

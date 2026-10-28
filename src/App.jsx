@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import LandingPage from './pages/LandingPage.jsx'
 import AuthPage from './pages/AuthPage.jsx'
+import ContinuePage from './pages/ContinuePage.jsx'
 import PoliciesPage from './pages/PoliciesPage.jsx'
 import ContactPage from './pages/ContactPage.jsx'
 import HomePage from './pages/HomePage.jsx'
@@ -32,9 +33,11 @@ export default function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/continue/*" element={<ContinuePage />} />
       <Route path="/policies" element={<PoliciesPage />} />
       <Route path="/policies/:slug" element={<PoliciesPage />} />
       <Route path="/contact" element={<ContactPage />} />
+      <Route path="/book/:slug" element={<BookPage />} />
       <Route
         path="/home"
         element={
@@ -48,14 +51,6 @@ export default function App() {
         element={
           <ProtectedRoute>
             <UpgradePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/book/:slug"
-        element={
-          <ProtectedRoute>
-            <BookPage />
           </ProtectedRoute>
         }
       />
