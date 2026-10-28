@@ -7,6 +7,7 @@ import CategoryList from '../components/CategoryList'
 import CategoryDrawer from '../components/CategoryDrawer'
 import ContinueReading from '../components/ContinueReading'
 import FeaturedBooks from '../components/FeaturedBooks'
+import StreakCard from '../components/streak/StreakCard'
 import Toast from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
 import { useFavorites } from '../hooks/useFavorites'
@@ -196,6 +197,7 @@ export default function HomePage() {
             <ChevronDown className="h-4 w-4 shrink-0" />
           </button>
 
+          {noFilters && <StreakCard userId={user?.id} />}
           {noFilters && <ContinueReading userId={user?.id} />}
           {noFilters && <FeaturedBooks favoriteIds={favoriteIds} onToggleFavorite={handleFavorite} />}
 

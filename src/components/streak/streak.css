@@ -1,0 +1,59 @@
+.rb-confetti {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.rb-confetti span {
+  position: absolute;
+  top: -12px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: rb-fall var(--dur) ease-in var(--delay) forwards;
+}
+
+@keyframes rb-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(440px) rotate(540deg); opacity: 0; }
+}
+
+.rb-flame {
+  animation: rb-flicker 1.4s ease-in-out infinite;
+  transform-origin: 50% 90%;
+}
+
+@keyframes rb-flicker {
+  0%, 100% { transform: scale(1) rotate(-2deg); }
+  50% { transform: scale(1.09) rotate(2deg); }
+}
+
+.rb-pop {
+  animation: rb-pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+@keyframes rb-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.rb-slide {
+  animation: rb-slide 0.4s ease-out both;
+}
+
+@keyframes rb-slide {
+  0% { transform: translateY(-16px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rb-flame,
+  .rb-pop,
+  .rb-slide {
+    animation: none;
+  }
+  .rb-confetti {
+    display: none;
+  }
+}

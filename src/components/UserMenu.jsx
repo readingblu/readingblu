@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Flag, Heart, LayoutDashboard, Library, LogOut, MessageSquare, Settings, ShieldCheck, User } from 'lucide-react'
+import { Flag, Flame, Heart, LayoutDashboard, Library, LogOut, MessageSquare, Settings, ShieldCheck, Trophy, User } from 'lucide-react'
 
 export default function UserMenu({ profile, onSignOut }) {
   const [open, setOpen] = useState(false)
@@ -53,6 +53,12 @@ export default function UserMenu({ profile, onSignOut }) {
         <div role="menu" className="absolute right-0 top-12 z-40 max-h-[80vh] w-60 overflow-y-auto rounded-2xl border-2 border-ink bg-white p-2 shadow-xl">
           <p className="truncate px-3 py-2 text-sm font-extrabold">{name}</p>
           <div className="my-1 h-px bg-ink/10" />
+          <Link role="menuitem" to="/streak" onClick={() => setOpen(false)} className={itemClass}>
+            <Flame className="h-4 w-4" /> My streak
+          </Link>
+          <Link role="menuitem" to="/finished" onClick={() => setOpen(false)} className={itemClass}>
+            <Trophy className="h-4 w-4" /> My shelf
+          </Link>
           <Link role="menuitem" to="/saved" onClick={() => setOpen(false)} className={itemClass}>
             <Heart className="h-4 w-4" /> Saved books
           </Link>

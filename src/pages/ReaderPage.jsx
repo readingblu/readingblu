@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ChevronLeft, ChevronRight, Coins, Loader2, ShieldAlert, ZoomIn, ZoomOut } from 'lucide-react'
 import Watermark from '../components/reader/Watermark'
+import { FinishCelebration, GoalCelebration } from '../components/streak/Celebrate' // STREAK
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { DAILY_CREDITS, formatCredits, formatReset } from '../lib/credits'
+import { invalidateStreak, userTimeZone } from '../lib/streak' // STREAK
 
 const IMG_MAX_HEIGHT = 'calc(100dvh - 10rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))'
 const URL_LIFETIME_SECONDS = 15 * 60
@@ -15,6 +17,7 @@ const ZOOM_HOLD_DELAY_MS = 350 // hold a zoom button this long and it starts rep
 const ZOOM_HOLD_REPEAT_MS = 45
 const UNLOCK_DELAY_MS = 150 // fast-flip window: while flipping faster than this, only the page you stop on is paid for
 const IMG_CACHE_LIMIT = 6 // previous + current + next two pages, plus a little slack
+const READ_DWELL_MS = 1200 // STREAK: a page counts as read after it has stayed on screen this long
 
 // Stop an image download and drop its pixels so the browser is free to reclaim the memory
 function releaseEntry(entry) {
@@ -161,6 +164,8 @@ export default function ReaderPage() {
   const [nat, setNat] = useState(null) // natural size of the current page image
   const [box, setBox] = useState({ w: 0, h: 0 }) // space available for the page
   const [mainEl, setMainEl] = useState(null)
+  const [goalCard, setGoalCard] = useState(null) // STREAK: streak length to celebrate
+  const [finishCard, setFinishCard] = useState(null) // STREAK: { title, count }
 
   const isDesktop = useIsDesktop()
 
@@ -170,6 +175,7 @@ export default function ReaderPage() {
   const urlCache = useRef(new Map())
   const imgCache = useRef(new Map()) // storage path -> { url, img, promise } (keeps preloaded images alive)
   const unlockInflight = useRef(new Map()) // page_number -> unlock_page call already running
+  const recorded = useRef(new Set()) // STREAK: page numbers already counted as read in this visit
   const walletSeq = useRef(0)
   const walletApplied = useRef(0)
   const indexRef = useRef(0) // always the latest index, even between renders
@@ -280,6 +286,7 @@ export default function ReaderPage() {
     unlocked.current = new Map()
     urlCache.current = new Map()
     unlockInflight.current = new Map()
+    recorded.current = new Set() // STREAK
     shownIdxRef.current = -1
     setNat(null)
     setZoomPct(null)
@@ -441,6 +448,40 @@ export default function ReaderPage() {
       active = false
     }
   }, [state, rows, index, pageStatus])
+
+  // STREAK: a page counts as read once it has stayed on screen for a moment. The server checks the page
+  // is really open for this reader, counts it once a day, and tells us when the daily goal is reached
+  // or a book is finished. If the reader flips away early, the timer is simply cancelled.
+  useEffect(() => {
+    if (state !== 'ready' || pageStatus !== 'ready' || !book || covered) return undefined
+    const row = rows[shownIdx]
+    if (!row || recorded.current.has(row.page_number)) return undefined
+
+    const timer = setTimeout(async () => {
+      recorded.current.add(row.page_number)
+      try {
+        const { data, error } = await supabase.rpc('record_read', {
+          p_book: book.id,
+          p_page: row.page_number,
+          p_tz: userTimeZone(),
+        })
+        if (error || !data || data.status !== 'ok') {
+          recorded.current.delete(row.page_number)
+          return
+        }
+        invalidateStreak()
+        if (data.goal_just_met) setGoalCard(data.streak.current)
+        if (data.finished_now) setFinishCard({ title: data.book_title, count: data.finished_count })
+      } catch {
+        recorded.current.delete(row.page_number)
+      }
+    }, READ_DWELL_MS)
+
+    return () => clearTimeout(timer)
+  }, [state, pageStatus, shownIdx, rows, book, covered])
+
+  const closeGoal = useCallback(() => setGoalCard(null), []) // STREAK
+  const closeFinish = useCallback(() => setFinishCard(null), []) // STREAK
 
   // Index and slider always move together; indexRef keeps quick repeated presses (key held down) correct
   const goTo = useCallback(
@@ -867,6 +908,9 @@ export default function ReaderPage() {
             </footer>
           </>
         )}
+
+        {goalCard !== null && <GoalCelebration streak={goalCard} onClose={closeGoal} />}
+        {finishCard && <FinishCelebration title={finishCard.title} count={finishCard.count} onClose={closeFinish} />}
 
         {leaveOpen && (
           <div

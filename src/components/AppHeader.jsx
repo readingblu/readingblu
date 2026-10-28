@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { Coins, Crown, Heart, Library, Search, X } from 'lucide-react'
 import Logo from './Logo'
 import UserMenu from './UserMenu'
+import StreakChip from './streak/StreakChip'
 import { useAuth } from '../context/AuthContext'
 import { useProfile } from '../hooks/useProfile'
 import { useWallet } from '../hooks/useWallet'
@@ -112,6 +113,8 @@ export default function AppHeader() {
               <span className="hidden sm:inline">Upgrade</span>
               <span className="sr-only sm:hidden">Upgrade</span>
             </Link>
+
+            <StreakChip userId={user?.id} />
 
             <Link
               to="/upgrade"

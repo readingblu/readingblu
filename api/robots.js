@@ -12,6 +12,8 @@ export default function handler(req, res) {
     'Disallow: /account',
     'Disallow: /admin',
     'Disallow: /upgrade',
+    'Disallow: /streak',
+    'Disallow: /finished',
     'Disallow: /auth',
     'Disallow: /continue',
     '',

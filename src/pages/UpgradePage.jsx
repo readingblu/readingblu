@@ -40,7 +40,7 @@ export default function UpgradePage() {
       <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-5 sm:py-12">
         <h1 className="text-center text-3xl font-extrabold sm:text-4xl">Your credits</h1>
         <p className="mx-auto mt-2 max-w-xl text-center font-semibold text-ink-soft">
-          1 credit unlocks 10 pages. Everyone gets {DAILY_CREDITS} free credits every day.
+          1 credit unlocks 10 pages. Everyone gets {DAILY_CREDITS} free credits every day, and the first 5 pages of every book are always free.
         </p>
 
         <section aria-label="Your balance" className="mx-auto mt-6 max-w-2xl rounded-3xl border-2 border-ink bg-white p-4 sm:p-6">
@@ -76,7 +76,8 @@ export default function UpgradePage() {
             <Info className="mt-0.5 h-4 w-4 shrink-0" /> How it works
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-6">
-            <li>Each page you open uses a tenth of a credit. Credits are shared across all your books.</li>
+            <li>The first 5 pages of every book are free, so you can peek at the cover and the opening pages without using credits.</li>
+            <li>After that, each page you open uses a tenth of a credit. Credits are shared across all your books.</li>
             <li>A page you open stays unlocked for 24 hours, so you can switch books and come back to where you stopped.</li>
             <li>Daily credits are used first, then purchased credits. You keep getting daily credits even after you buy credits.</li>
             <li>Payments are not live yet, so you cannot buy credits right now.</li>

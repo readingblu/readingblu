@@ -10,6 +10,8 @@ import BookPage from './pages/BookPage.jsx'
 import SavedPage from './pages/SavedPage.jsx'
 import LibraryPage from './pages/LibraryPage.jsx'
 import AccountPage from './pages/AccountPage.jsx'
+import StreakPage from './pages/StreakPage.jsx'
+import FinishedPage from './pages/FinishedPage.jsx'
 import ReaderPage from './pages/ReaderPage.jsx'
 import AdminBooksPage from './pages/AdminBooksPage.jsx'
 import AdminBookEditPage from './pages/AdminBookEditPage.jsx'
@@ -28,6 +30,10 @@ function Admin({ children }) {
   )
 }
 
+function Private({ children }) {
+  return <ProtectedRoute>{children}</ProtectedRoute>
+}
+
 export default function App() {
   return (
     <Routes>
@@ -38,54 +44,14 @@ export default function App() {
       <Route path="/policies/:slug" element={<PoliciesPage />} />
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/book/:slug" element={<BookPage />} />
-      <Route
-        path="/home"
-        element={
-          <ProtectedRoute>
-            <HomePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/upgrade"
-        element={
-          <ProtectedRoute>
-            <UpgradePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/read/:slug"
-        element={
-          <ProtectedRoute>
-            <ReaderPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/saved"
-        element={
-          <ProtectedRoute>
-            <SavedPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/library"
-        element={
-          <ProtectedRoute>
-            <LibraryPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/account"
-        element={
-          <ProtectedRoute>
-            <AccountPage />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/home" element={<Private><HomePage /></Private>} />
+      <Route path="/upgrade" element={<Private><UpgradePage /></Private>} />
+      <Route path="/read/:slug" element={<Private><ReaderPage /></Private>} />
+      <Route path="/saved" element={<Private><SavedPage /></Private>} />
+      <Route path="/library" element={<Private><LibraryPage /></Private>} />
+      <Route path="/streak" element={<Private><StreakPage /></Private>} />
+      <Route path="/finished" element={<Private><FinishedPage /></Private>} />
+      <Route path="/account" element={<Private><AccountPage /></Private>} />
       <Route path="/admin" element={<Admin><AdminBooksPage /></Admin>} />
       <Route path="/admin/dashboard" element={<Admin><AdminDashboardPage /></Admin>} />
       <Route path="/admin/reviews" element={<Admin><AdminReviewsPage /></Admin>} />
