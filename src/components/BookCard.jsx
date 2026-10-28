@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BookOpen, Heart, Star } from 'lucide-react'
 
+// Cover shape: width / height. 2/3 is tall and thin, 1/1 is a full square.
+// 4/5 sits in between: almost a box, still a little taller than wide.
+const COVER_RATIO = 'aspect-[4/5]'
+
 export default function BookCard({ book, liked, onToggleFavorite }) {
   const [failed, setFailed] = useState(false)
   const hasRating = book.rating_count > 0
@@ -11,7 +15,7 @@ export default function BookCard({ book, liked, onToggleFavorite }) {
       <div className="relative">
         <Link to={`/book/${book.slug}`} tabIndex={-1} aria-hidden="true" className="block">
           {failed || !book.cover_url ? (
-            <div className="flex aspect-[2/3] w-full items-center justify-center rounded-xl bg-gradient-to-br from-ink to-ink-soft text-lime">
+            <div className={`flex ${COVER_RATIO} w-full items-center justify-center rounded-xl bg-gradient-to-br from-ink to-ink-soft text-lime`}>
               <BookOpen className="h-10 w-10" />
             </div>
           ) : (
@@ -21,7 +25,7 @@ export default function BookCard({ book, liked, onToggleFavorite }) {
               loading="lazy"
               draggable="false"
               onError={() => setFailed(true)}
-              className="aspect-[2/3] w-full rounded-xl bg-sky object-cover"
+              className={`${COVER_RATIO} w-full rounded-xl bg-sky object-cover`}
             />
           )}
         </Link>
