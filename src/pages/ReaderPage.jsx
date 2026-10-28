@@ -386,8 +386,7 @@ export default function ReaderPage() {
         }
         const loaded = (await warm) || (await loadPage())
         if (!active || !loaded) return
-        // A different page starts at "fit to screen" so an old zoom never carries onto it
-        if (shownIdxRef.current !== index) setZoomPct(null)
+        // The reader's zoom is kept when flipping pages (only "fit to screen" or a new book resets it)
         shownIdxRef.current = index
         setNat({ w: loaded.img.naturalWidth, h: loaded.img.naturalHeight })
         setPageUrl(loaded.url)
