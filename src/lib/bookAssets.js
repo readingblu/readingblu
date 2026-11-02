@@ -4,8 +4,10 @@ const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_IMAGE_MB = 15
 const MAX_PDF_MB = 150
 export const MAX_PAGES = 400
-const PAGE_WIDTH = 1400
+const PAGE_WIDTH = 1200
+const PAGE_QUALITY = 0.72
 const PREVIEW_WIDTH = 1200
+const PREVIEW_QUALITY = 0.8
 
 export function sortFiles(fileList) {
   return Array.from(fileList).sort((a, b) =>
@@ -40,7 +42,7 @@ function getPdfjs() {
   return pdfjsPromise
 }
 
-function canvasToBlob(canvas, quality = 0.85) {
+function canvasToBlob(canvas, quality) {
   return new Promise((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not create a page image.'))), 'image/jpeg', quality)
   })
@@ -100,7 +102,7 @@ async function openRenderer(source) {
   if (source.kind === 'images') {
     return {
       count: source.count,
-      get: (i, maxWidth) => compressImage(source.files[i], maxWidth),
+      get: (i, maxWidth) => compressImage(source.files[i], maxWidth, PAGE_QUALITY),
       close: async () => {},
     }
   }
@@ -122,7 +124,7 @@ async function openRenderer(source) {
       ctx.fillRect(0, 0, canvas.width, canvas.height)
       await page.render({ canvasContext: ctx, viewport }).promise
       page.cleanup()
-      const blob = await canvasToBlob(canvas)
+      const blob = await canvasToBlob(canvas, PAGE_QUALITY)
       canvas.width = 0
       return blob
     },
@@ -208,7 +210,7 @@ export async function createBookFull({ details, coverFile, previewMode, previewF
     if (previewMode === 'own') {
       for (let i = 0; i < previewFiles.length; i += 1) {
         const path = `${bookId}/${batch}/page-${i + 1}.jpg`
-        await putFile('previews', path, await compressImage(previewFiles[i], PREVIEW_WIDTH))
+        await putFile('previews', path, await compressImage(previewFiles[i], PREVIEW_WIDTH, PREVIEW_QUALITY))
         uploaded.previews.push(path)
         previewRows.push({ book_id: bookId, page_number: i + 1, image_url: publicUrl('previews', path) })
         tick(`Preview ${i + 1} of ${previewFiles.length}`)
@@ -288,7 +290,7 @@ export async function replacePreviews(bookId, files, onProgress) {
   try {
     for (let i = 0; i < files.length; i += 1) {
       const path = `${bookId}/${batch}/page-${i + 1}.jpg`
-      await putFile('previews', path, await compressImage(files[i], PREVIEW_WIDTH))
+      await putFile('previews', path, await compressImage(files[i], PREVIEW_WIDTH, PREVIEW_QUALITY))
       paths.push(path)
       if (onProgress) onProgress(i + 1, files.length)
     }
