@@ -9,10 +9,16 @@ import { useProfile } from '../hooks/useProfile'
 import { useWallet } from '../hooks/useWallet'
 import { formatCredits } from '../lib/credits'
 
-function SearchBox({ value, onChange, onSubmit, className = '' }) {
+function SearchBox({ value, onChange, onSubmit, className = '', compact = false }) {
+  const inputClass = compact
+    ? 'h-10 w-full rounded-full border border-ink/20 bg-sky/60 pl-11 pr-10 text-base font-semibold outline-none placeholder:text-ink-soft/70 focus:border-ink focus:bg-white focus:ring-4 focus:ring-lime/40 [&::-webkit-search-cancel-button]:hidden'
+    : 'h-11 w-full rounded-full border-2 border-ink bg-paper pl-12 pr-11 text-base font-semibold outline-none placeholder:text-ink-soft/70 focus:bg-white focus:ring-4 focus:ring-lime/40 [&::-webkit-search-cancel-button]:hidden'
+
   return (
     <form role="search" onSubmit={onSubmit} className={`relative ${className}`}>
-      <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-soft" />
+      <Search
+        className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-ink-soft ${compact ? 'left-4 h-4 w-4' : 'left-4 h-5 w-5'}`}
+      />
       <input
         type="search"
         value={value}
@@ -20,7 +26,7 @@ function SearchBox({ value, onChange, onSubmit, className = '' }) {
         placeholder="Browse e-books"
         aria-label="Browse e-books"
         enterKeyHint="search"
-        className="h-11 w-full rounded-full border-2 border-ink bg-paper pl-12 pr-11 text-base font-semibold outline-none placeholder:text-ink-soft/70 focus:bg-white focus:ring-4 focus:ring-lime/40 [&::-webkit-search-cancel-button]:hidden"
+        className={inputClass}
       />
       {value && (
         <button
@@ -132,7 +138,7 @@ export default function AppHeader() {
           </div>
         </div>
 
-        <SearchBox value={value} onChange={setValue} onSubmit={submit} className="pb-2 md:hidden" />
+        <SearchBox value={value} onChange={setValue} onSubmit={submit} className="pb-2 md:hidden" compact />
       </div>
     </header>
   )

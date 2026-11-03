@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, BookOpen, Check, Eye, Flag, Heart, Loader2, Share2, ShoppingCart, Sparkles } from 'lucide-react'
+import { ArrowLeft, BookOpen, Check, Coins, Eye, Flag, Heart, Loader2, Share2, ShoppingCart, Sparkles } from 'lucide-react'
 import AppLayout from '../components/AppLayout'
 import PreviewModal from '../components/PreviewModal'
 import RelatedBooks from '../components/RelatedBooks'
@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext'
 import { useFavorites } from '../hooks/useFavorites'
 import { usePageMeta } from '../hooks/usePageMeta'
 import { useToast } from '../hooks/useToast'
+import { FREE_PAGES } from '../lib/credits'
 import { authUrl } from '../lib/nav'
 import { supabase } from '../lib/supabase'
 
@@ -30,6 +31,7 @@ export default function BookPage() {
   const [owned, setOwned] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
+  const [descOpen, setDescOpen] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -40,6 +42,7 @@ export default function BookPage() {
     setCoverFailed(false)
     setPreviewOpen(false)
     setReportOpen(false)
+    setDescOpen(false)
     window.scrollTo({ top: 0 })
 
     supabase
@@ -172,12 +175,17 @@ export default function BookPage() {
   const closeReport = useCallback(() => setReportOpen(false), [])
 
   const hasRating = book && book.rating_count > 0
-  const secondaryBtn =
-    'inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-white px-6 font-extrabold transition hover:bg-sky sm:w-auto'
+  const description = book?.description || 'A description for this book is coming soon.'
+  const longDescription = description.length > 170
+
+  // Icon-over-label tiles on phones, normal pill buttons from tablet size up
+  const actBtn =
+    'flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border-2 border-ink bg-white px-1 py-2.5 text-[13px] font-extrabold leading-tight transition hover:bg-sky sm:h-12 sm:flex-row sm:gap-2 sm:rounded-full sm:px-6 sm:py-0 sm:text-base'
+  const chip = 'rounded-full bg-white px-3 py-1 text-xs font-extrabold ring-1 ring-ink/15 sm:hidden'
 
   return (
     <AppLayout>
-      <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-5 sm:py-10">
+      <div className="mx-auto w-full max-w-4xl px-4 py-4 sm:px-5 sm:py-10">
         <button type="button" onClick={goBack} className="inline-flex items-center gap-1 text-sm font-extrabold hover:underline">
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
@@ -210,41 +218,44 @@ export default function BookPage() {
 
         {!loading && book && (
           <>
-            <div className="mt-6 grid gap-6 sm:grid-cols-[220px_minmax(0,1fr)] sm:gap-8">
-              <div className="mx-auto w-48 sm:w-full">
-                {coverFailed || !book.cover_url ? (
-                  <div className="flex aspect-[2/3] w-full items-center justify-center rounded-2xl bg-gradient-to-br from-ink to-ink-soft text-lime">
-                    <BookOpen className="h-14 w-14" />
-                  </div>
-                ) : (
-                  <img
-                    src={book.cover_url}
-                    alt={`Cover of ${book.title}`}
-                    draggable="false"
-                    onError={() => setCoverFailed(true)}
-                    className="aspect-[2/3] w-full rounded-2xl border-2 border-ink bg-sky object-cover shadow-[0_6px_0_0_var(--color-ink)]"
-                  />
-                )}
+            <div className="mt-3 grid gap-5 sm:mt-6 sm:grid-cols-[220px_minmax(0,1fr)] sm:gap-8">
+              <div className="rounded-3xl bg-gradient-to-b from-sky to-transparent px-4 pb-2 pt-5 sm:rounded-none sm:bg-none sm:p-0">
+                <div className="mx-auto w-40 min-[400px]:w-44 sm:w-full">
+                  {coverFailed || !book.cover_url ? (
+                    <div className="flex aspect-[2/3] w-full items-center justify-center rounded-2xl bg-gradient-to-br from-ink to-ink-soft text-lime">
+                      <BookOpen className="h-14 w-14" />
+                    </div>
+                  ) : (
+                    <img
+                      src={book.cover_url}
+                      alt={`Cover of ${book.title}`}
+                      draggable="false"
+                      onError={() => setCoverFailed(true)}
+                      className="aspect-[2/3] w-full rounded-2xl border-2 border-ink bg-sky object-cover shadow-[0_6px_0_0_var(--color-ink)]"
+                    />
+                  )}
+                </div>
               </div>
 
-              <div className="min-w-0">
-                <h1 className="break-words text-3xl font-extrabold sm:text-4xl">{book.title}</h1>
+              <div className="min-w-0 text-center sm:text-left">
+                <h1 className="break-words text-2xl font-extrabold leading-tight sm:text-4xl">{book.title}</h1>
 
-                <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-sky px-3 py-1 text-sm font-extrabold">
-                  <Sparkles className="h-4 w-4 text-lime-deep" /> AI Generated
-                </p>
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-sky px-3 py-1 text-sm font-extrabold">
+                    <Sparkles className="h-4 w-4 text-lime-deep" /> AI Generated
+                  </span>
+                  {book.categories?.name && <span className={chip}>{book.categories.name}</span>}
+                  {book.page_count ? <span className={chip}>{book.page_count} pages</span> : null}
+                </div>
 
-                <p className="mt-3 text-sm font-bold text-ink-soft">
+                <p className="mt-3 hidden text-sm font-bold text-ink-soft sm:block">
                   {book.categories?.name ? `${book.categories.name} · ` : ''}
                   {book.page_count ? `${book.page_count} pages · ` : ''}
                   From {book.author}
                 </p>
+                <p className="mt-2 text-xs font-bold text-ink-soft sm:hidden">From {book.author}</p>
 
-                <p className="mt-4 whitespace-pre-line break-words leading-relaxed text-ink-soft">
-                  {book.description || 'A description for this book is coming soon.'}
-                </p>
-
-                <div className="mt-4 flex flex-wrap items-center gap-2 text-sm font-bold">
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm font-bold sm:mt-4 sm:justify-start">
                   <Stars value={book.rating_avg} size="h-5 w-5" />
                   {hasRating ? (
                     <span>
@@ -258,59 +269,91 @@ export default function BookPage() {
                   )}
                 </div>
 
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <div className="mt-4 rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-ink/10 sm:mt-4 sm:bg-transparent sm:p-0 sm:shadow-none sm:ring-0">
+                  <p
+                    className={`whitespace-pre-line break-words leading-relaxed text-ink-soft ${
+                      descOpen ? '' : 'line-clamp-4 sm:line-clamp-none'
+                    }`}
+                  >
+                    {description}
+                  </p>
+                  {longDescription && (
+                    <button
+                      type="button"
+                      onClick={() => setDescOpen((o) => !o)}
+                      aria-expanded={descOpen}
+                      className="mt-1 text-sm font-extrabold text-ink underline sm:hidden"
+                    >
+                      {descOpen ? 'Show less' : 'Read more'}
+                    </button>
+                  )}
+                </div>
+
+                <div className="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
                     onClick={handleRead}
-                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-lime px-6 font-extrabold shadow-[0_4px_0_0_var(--color-ink)] transition hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none sm:w-auto"
+                    className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-full bg-lime text-lg font-extrabold shadow-[0_4px_0_0_var(--color-ink)] transition hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none sm:h-12 sm:w-auto sm:px-6 sm:text-base"
                   >
                     <BookOpen className="h-5 w-5" /> Read
                   </button>
 
-                  <button type="button" onClick={openPreview} className={secondaryBtn}>
-                    <Eye className="h-5 w-5" /> Preview
-                  </button>
-
-                  {owned ? (
-                    <span className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-sky px-6 font-extrabold sm:w-auto">
-                      <Check className="h-5 w-5 text-lime-deep" /> In your Library
-                    </span>
-                  ) : (
-                    <button type="button" onClick={() => show('Payments are coming soon.')} className={secondaryBtn}>
-                      <ShoppingCart className="h-5 w-5" /> Buy this
+                  <div className="grid grid-cols-4 gap-2 sm:contents">
+                    <button type="button" onClick={openPreview} className={actBtn}>
+                      <Eye className="h-5 w-5" /> Preview
                     </button>
-                  )}
 
-                  <button type="button" onClick={handleSave} aria-pressed={saved} className={secondaryBtn}>
-                    <Heart className={`h-5 w-5 ${saved ? 'fill-blush text-blush' : ''}`} />
-                    {saved ? 'Saved' : 'Save'}
-                  </button>
+                    {owned ? (
+                      <span className={`${actBtn} border-transparent bg-sky hover:bg-sky`}>
+                        <Check className="h-5 w-5 text-lime-deep" />
+                        <span className="sm:hidden">In Library</span>
+                        <span className="hidden sm:inline">In your Library</span>
+                      </span>
+                    ) : (
+                      <button type="button" onClick={() => show('Payments are coming soon.')} className={actBtn}>
+                        <ShoppingCart className="h-5 w-5" /> Buy this
+                      </button>
+                    )}
 
-                  <button type="button" onClick={handleShare} className={secondaryBtn}>
-                    <Share2 className="h-5 w-5" /> Share
-                  </button>
+                    <button type="button" onClick={handleSave} aria-pressed={saved} className={actBtn}>
+                      <Heart className={`h-5 w-5 ${saved ? 'fill-blush text-blush' : ''}`} />
+                      {saved ? 'Saved' : 'Save'}
+                    </button>
+
+                    <button type="button" onClick={handleShare} className={actBtn}>
+                      <Share2 className="h-5 w-5" /> Share
+                    </button>
+                  </div>
                 </div>
 
                 {user ? (
-                  <p className="mt-3 text-sm font-semibold text-ink-soft">
-                    Reading uses credits: 1 credit unlocks 10 pages, and you get 2 free credits every day.{' '}
-                    <Link to="/upgrade" className="font-extrabold text-ink underline">
-                      See your credits
-                    </Link>
+                  <p className="mt-4 flex items-start gap-2 rounded-2xl bg-sky/70 p-3 text-left text-sm font-semibold text-ink-soft sm:mt-3 sm:bg-transparent sm:p-0">
+                    <Coins className="mt-0.5 h-4 w-4 shrink-0 text-ink sm:hidden" aria-hidden="true" />
+                    <span>
+                      The first {FREE_PAGES} pages are free. After that, 1 credit unlocks 10 pages, and you get 2 free credits every day.{' '}
+                      <Link to="/upgrade" className="font-extrabold text-ink underline">
+                        See your credits
+                      </Link>
+                    </span>
                   </p>
                 ) : (
-                  <p className="mt-3 text-sm font-semibold text-ink-soft">
-                    Sign up free and get 2 free credits every day. 1 credit unlocks 10 pages.
+                  <p className="mt-4 flex items-start gap-2 rounded-2xl bg-sky/70 p-3 text-left text-sm font-semibold text-ink-soft sm:mt-3 sm:bg-transparent sm:p-0">
+                    <Coins className="mt-0.5 h-4 w-4 shrink-0 text-ink sm:hidden" aria-hidden="true" />
+                    <span>
+                      Sign up free. The first {FREE_PAGES} pages of every book are free, and you get 2 free credits every day.
+                    </span>
                   </p>
                 )}
 
-                <button
-                  type="button"
-                  onClick={handleReport}
-                  className="mt-3 inline-flex items-center gap-1.5 text-sm font-extrabold text-ink-soft hover:text-ink hover:underline"
-                >
-                  <Flag className="h-4 w-4" /> Report a problem
-                </button>
+                <div className="mt-3 flex justify-center sm:justify-start">
+                  <button
+                    type="button"
+                    onClick={handleReport}
+                    className="inline-flex items-center gap-1.5 text-sm font-extrabold text-ink-soft hover:text-ink hover:underline"
+                  >
+                    <Flag className="h-4 w-4" /> Report a problem
+                  </button>
+                </div>
               </div>
             </div>
 
